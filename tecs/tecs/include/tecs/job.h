@@ -12,37 +12,51 @@
 namespace tecs
 {
 
+// Forward declaration
+class JobHandle;
+
+/**
+ * @brief
+ * Class representing the state of a job
+ * This class is used internally by JobHandle to manage job completion
+ */
+class JobState
+{
+public:
+    JobState() = default;
+    ~JobState() = default;
+
+    // Allow JobHandle to access private members
+    friend class JobHandle;
+
+    /**
+     * @brief
+     * Mark the job as completed and notify all waiting threads
+     */
+    void MarkCompleted();
+
+private:
+    // Atomic flag to indicate job completion
+    std::atomic<bool> completed_{false};
+
+    // Condition variable to notify waiting threads
+    std::condition_variable cv_ = {};
+
+    // Mutex for synchronizing access to the condition variable
+    std::mutex mutex_ = {};
+};
+
+/**
+ * @brief
+ * Handle for a scheduled job
+ * Allows waiting for job completion
+ */
 class JobHandle
 {
 public:
-    class JobState
-    {
-    public:
-        JobState() = default;
-        ~JobState() = default;
-
-        // Allow JobHandle to access private members
-        friend class JobHandle;
-
-        /**
-         * @brief
-         * Mark the job as completed and notify all waiting threads.
-         */
-        void MarkCompleted();
-
-    private:
-        // Atomic flag to indicate job completion
-        std::atomic<bool> completed_{false};
-
-        // Condition variable to notify waiting threads
-        std::condition_variable cv_ = {};
-
-        // Mutex for synchronizing access to the condition variable
-        std::mutex mutex_ = {};
-    };
-
     /**
-     * @brief Construct a new Job Handle object
+     * @brief
+     * Construct a new Job Handle object
      * 
      * @param state
      * Shared pointer to the JobState
@@ -53,8 +67,8 @@ public:
 
     /**
      * @brief
-     * Wait for the job to complete.
-     * This function blocks until the job is marked as completed.
+     * Wait for the job to complete
+     * This function blocks until the job is marked as completed
      */
     void Wait();
 
@@ -64,48 +78,115 @@ private:
 };
 
 /**
+ * @brief
+ * Job class representing a unit of work to be executed
+ * This class encapsulates a function to be run as a job
+ */
+class Job
+{
+public:
+    /**
+     * @brief
+     * Alias for the job function
+     * 
+     * @return true
+     * If the job was successful
+     * 
+     * @return false
+     * If the job failed
+     */
+    using JobFunc = std::function<bool()>;
+
+    /**
+     * @brief
+     * Construct a new Job object
+     * 
+     * @param func 
+     * The function to be executed as part of the job
+     * If nullptr is passed, will be asserted
+     */
+    Job(JobFunc func);
+    
+    ~Job() = default;
+
+    /**
+     * @brief
+     * Execute the job function
+     * 
+     * @return true
+     * If the job was successful
+     * 
+     * @return false
+     * If the job failed
+     */
+    bool Execute();
+
+private:
+    // The function to be executed as part of the job
+    JobFunc func_ = nullptr;
+};
+
+/**
  * @brief 
- * Job Scheduler class responsible for managing job execution.
- * Currently a placeholder with no implemented functionality.
+ * Job Scheduler class responsible for managing job execution
+ * Currently a placeholder with no implemented functionality
  */
 class JobScheduler
 {
 public:
-    JobScheduler() = default;
-    ~JobScheduler() = default;
-
     /**
-     * @brief
-     * Alias for a job function
+     * @brief 
+     * Construct a new Job Scheduler object
+     * Worker thread is started upon construction
      */
-    using Job = std::function<void()>;
+    JobScheduler();
 
     /**
      * @brief
-     * Schedule a job for execution.
+     * Destroy the Job Scheduler object
+     * Worker thread is stopped and joined upon destruction
+     */
+    ~JobScheduler();
+
+    /**
+     * @brief
+     * Schedule a job for execution
      * 
      * @param job
-     * The job to be scheduled.
+     * The job to be scheduled
      * 
      * @return JobHandle
-     * Handle to the scheduled job.
-     * You can use this handle to wait for job completion.
+     * Handle to the scheduled job
+     * You can use this handle to wait for job completion
      */
-    JobHandle ScheduleJob(Job&& job);
+    JobHandle ScheduleJob(Job job);
 
 private:
     /**
      * @brief
-     * Struct representing a scheduled job along with its state.
+     * Struct representing a scheduled job along with its state
      */
-    struct JobSet
+    class JobSet
     {
-        Job job;
-        std::shared_ptr<JobHandle::JobState> state;
+    public:
+        /**
+         * @brief
+         * Construct a new Job Set object
+         * 
+         * @param job 
+         * The job to be scheduled
+         * 
+         * @param state 
+         * Shared pointer to the JobState
+         */
+        JobSet(Job job, std::shared_ptr<JobState> state);
+
+        Job job_;
+        std::shared_ptr<JobState> state_;
     };
 
     // Queue to hold scheduled jobs
-    std::queue<JobSet> job_queue_;
+    std::queue<std::unique_ptr<JobSet>> job_queue_;
 
     // Mutex for thread-safe access to the job queue
     std::mutex mutex_;
@@ -121,7 +202,7 @@ private:
 
     /**
      * @brief
-     * Worker function that processes jobs from the queue.
+     * Worker function that processes jobs from the queue
      */
     void Work();
 };

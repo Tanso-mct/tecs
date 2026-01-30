@@ -8,3 +8,4 @@
 #include <condition_variable>
 #include <atomic>
 #include <thread>
+#include <cassert>

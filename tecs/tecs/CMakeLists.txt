@@ -5,8 +5,15 @@ cmake_minimum_required(VERSION 3.8)
 
 # ---- Library ----
 add_library(tecs STATIC
-    src/tecs.cpp
+    # ---- Headers ----
+
     include/tecs/tecs.h
+    include/tecs/job.h
+
+    # ---- Sources ----
+
+    src/tecs.cpp
+    src/job.cpp
 )
 
 # C++20
