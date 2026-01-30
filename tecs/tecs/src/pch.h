@@ -9,3 +9,4 @@
 #include <atomic>
 #include <thread>
 #include <cassert>
+#include <string>

@@ -15,8 +15,8 @@ void JobState::MarkCompleted()
     cv_.notify_all();
 }
 
-JobHandle::JobHandle(std::shared_ptr<JobState> state)
-    : state_(state)
+JobHandle::JobHandle(std::shared_ptr<JobState> state) : 
+    state_(state)
 {
 }
 
@@ -39,8 +39,9 @@ bool Job::Execute()
     return func_();
 }
 
-JobScheduler::JobScheduler()
-    : stop_flag_(false), worker_thread_(&JobScheduler::Work, this)
+JobScheduler::JobScheduler() :
+    stop_flag_(false), 
+    worker_thread_(&JobScheduler::Work, this)
 {
 }
 
@@ -75,8 +76,9 @@ JobHandle JobScheduler::ScheduleJob(Job job)
     return JobHandle(state);
 }
 
-JobScheduler::JobSet::JobSet(Job job, std::shared_ptr<JobState> state)
-    : job_(std::move(job)), state_(std::move(state))
+JobScheduler::JobSet::JobSet(Job job, std::shared_ptr<JobState> state) :
+    job_(std::move(job)), 
+    state_(std::move(state))
 {
 }
 
