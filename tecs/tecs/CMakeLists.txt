@@ -49,7 +49,7 @@ if (BUILD_TESTING)
     FetchContent_MakeAvailable(googletest)
 
     add_executable(tecs_tests
-        tests/tecs_test.cpp
+        tests/job.cpp
     )
 
     target_link_libraries(tecs_tests
