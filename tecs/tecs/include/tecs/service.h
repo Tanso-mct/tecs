@@ -31,6 +31,26 @@ public:
     {
     public:
         virtual ~Context() = default;
+
+        /**
+         * @brief
+         * Helper method to cast Context to derived type
+         */
+        template <typename T>
+        T* As()
+        {
+            return static_cast<T*>(this);
+        }
+
+        /**
+         * @brief
+         * Helper method to cast Context to derived type (const version)
+         */
+        template <typename T>
+        const T* As() const
+        {
+            return static_cast<const T*>(this);
+        }
     };
 
     /**
@@ -90,6 +110,12 @@ public:
 
         ~Task() = default;
 
+        // Disable copy semantics and enable move semantics
+        Task(const Task&) = delete;
+        Task& operator=(const Task&) = delete;
+        Task(Task&&) noexcept = default;
+        Task& operator=(Task&&) noexcept = default;
+
         /**
          * @brief 
          * Execute the task function
@@ -129,22 +155,6 @@ public:
     using TaskList = std::vector<Task>;
 
     /**
-     * @brief 
-     * Interface for querying the internal state of a service
-     * You can inherit this interface and implement inquiry methods specific to each service
-     */
-    class Query
-    {
-    public:
-        Query(const Context& context);
-        virtual ~Query() = default;
-
-    protected:
-        // Reference to the Context
-        const Context& context_;
-    };
-
-    /**
      * @brief
      * Construct a new Service object
      * 
@@ -155,7 +165,7 @@ public:
      * Unique pointer to the Query object 
      * Can not be nullptr If nullptr is passed, will be asserted
      */
-    Service(JobScheduler& job_scheduler, std::unique_ptr<Context> context, std::unique_ptr<Query> query);
+    Service(JobScheduler& job_scheduler, std::unique_ptr<Context> context);
 
     /**
      * @brief Destroy the Service object
@@ -174,13 +184,13 @@ public:
 
     /**
      * @brief 
-     * Get the Query object
-     * You can use this to inquire about the internal state of the service
+     * Get the Context object
+     * You can use this to access internal data of the service
      * 
      * @return 
-     * Reference to the Query object
+     * Reference to the Context object
      */
-    const Query& GetQuery() const;
+    const Context& GetContext() const;
 
     /**
      * @brief
@@ -219,6 +229,12 @@ public:
     virtual bool PostUpdate() = 0;
 
 protected:
+    // Reference to the JobScheduler
+    JobScheduler& job_scheduler_;
+
+    // Unique pointer to the Context object
+    std::unique_ptr<Context> context_ = nullptr;
+
     /**
      * @brief
      * Task List Queue for managing submitted tasks
@@ -255,6 +271,15 @@ protected:
          */
         bool Dequeue(TaskList& tasks);
 
+        /**
+         * @brief
+         * Dequeue all task lists from the queue
+         * 
+         * @return std::vector<TaskList>
+         * Vector containing all dequeued task lists
+         */
+        std::vector<TaskList> Dequeue();
+
     private:
         // Internal storage for the task queue
         std::queue<TaskList> queue_;
@@ -263,17 +288,8 @@ protected:
         std::mutex mutex_;
     };
 
-    // Reference to the JobScheduler
-    JobScheduler& job_scheduler_;
-
-    // Unique pointer to the Context object
-    std::unique_ptr<Context> context_ = nullptr;
-
     // Task List Queue for managing submitted tasks
     TaskListQueue task_list_queue_;
-
-    // Unique pointer to the Query object
-    std::unique_ptr<Query> query_ = nullptr;
 };
 
 class ServiceProxy
@@ -299,12 +315,16 @@ public:
 
     /**
      * @brief
-     * Wrapper for Service::GetQuery
+     * Wrapper for Service::GetContext
      * 
      * @return 
-     * Reference to the Query object of the proxied Service
+     * Pointer to the Context object casted to the specified type T
      */
-    const Service::Query& GetQuery() const;
+    template <typename T>
+    const T* GetContext() const
+    {
+        return service_.GetContext().As<T>();
+    }
 
 private:
     // Reference to the proxied Service

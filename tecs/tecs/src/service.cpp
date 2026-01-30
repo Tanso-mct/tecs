@@ -32,12 +32,11 @@ const Service::Task::Info& Service::Task::GetInfo() const
     return *info_;
 }
 
-Service::Service(JobScheduler& job_scheduler, std::unique_ptr<Context> context, std::unique_ptr<Query> query) :
+Service::Service(JobScheduler& job_scheduler, std::unique_ptr<Context> context) :
     job_scheduler_(job_scheduler), 
-    context_(std::move(context)),
-    query_(std::move(query))
+    context_(std::move(context))
 {
-    assert(query_ && "Service Query cannot be nullptr");
+    assert(context_ && "Service Context cannot be nullptr");
 }
 
 void Service::SumbitTaskList(TaskList tasks)
@@ -46,10 +45,10 @@ void Service::SumbitTaskList(TaskList tasks)
     task_list_queue_.Enqueue(std::move(tasks));
 }
 
-const Service::Query& Service::GetQuery() const
+const Service::Context& Service::GetContext() const
 {
-    assert(query_ && "Service Query is nullptr");
-    return *query_;
+    assert(context_ && "Service Context is nullptr");
+    return *context_;
 }
 
 void Service::TaskListQueue::Enqueue(TaskList tasks)
@@ -71,6 +70,21 @@ bool Service::TaskListQueue::Dequeue(TaskList& tasks)
     return true; // Successfully dequeued a task list
 }
 
+std::vector<Service::TaskList> Service::TaskListQueue::Dequeue()
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<TaskList> all_tasks;
+
+    while (!queue_.empty())
+    {
+        // Move each task list to the vector
+        all_tasks.emplace_back(std::move(queue_.front()));
+        queue_.pop();
+    }
+
+    return all_tasks; // Return all dequeued task lists
+}
+
 ServiceProxy::ServiceProxy(Service& service) : 
     service_(service)
 {
@@ -79,11 +93,6 @@ ServiceProxy::ServiceProxy(Service& service) :
 void ServiceProxy::SumbitTaskList(Service::TaskList tasks)
 {
     service_.SumbitTaskList(std::move(tasks));
-}
-
-const Service::Query& ServiceProxy::GetQuery() const
-{
-    return service_.GetQuery();
 }
 
 } // namespace tecs

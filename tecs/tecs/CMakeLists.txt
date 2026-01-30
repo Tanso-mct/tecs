@@ -36,6 +36,12 @@ target_precompile_headers(tecs
         "src/pch.h"
 )
 
+# Compile options
+target_compile_options(tecs 
+    PRIVATE
+        $<$<CXX_COMPILER_ID:MSVC>:/W4>
+)
+
 # ---- Tests ----
 include(CTest)  # BUILD_TESTING option + enable_testing()
 

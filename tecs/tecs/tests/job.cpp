@@ -23,9 +23,6 @@ TEST(tecs, schedule_job)
         // Simulate some work
         for (int i = 0; i < kExpectedResult; ++i)
             result++;
-
-        // Indicate success
-        return true;
     });
 
     // Start time measurement
@@ -67,9 +64,6 @@ TEST(tecs, schedule_multiple_jobs)
         // Simulate some work
         for (int i = 0; i < kExpectedResult; ++i)
             result_1++;
-
-        // Indicate success
-        return true;
     });
 
     // Create job 2
@@ -78,9 +72,6 @@ TEST(tecs, schedule_multiple_jobs)
         // Simulate some work
         for (int i = 0; i < kExpectedResult; ++i)
             result_2++;
-
-        // Indicate success
-        return true;
     });
 
     // Create job 3
@@ -89,9 +80,6 @@ TEST(tecs, schedule_multiple_jobs)
         // Simulate some work
         for (int i = 0; i < kExpectedResult; ++i)
             result_3++;
-
-        // Indicate success
-        return true;
     });
 
     // Start time measurement

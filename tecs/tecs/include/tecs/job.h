@@ -95,7 +95,7 @@ public:
      * @return false
      * If the job failed
      */
-    using JobFunc = std::function<bool()>;
+    using JobFunc = std::function<void()>;
 
     /**
      * @brief
@@ -112,14 +112,8 @@ public:
     /**
      * @brief
      * Execute the job function
-     * 
-     * @return true
-     * If the job was successful
-     * 
-     * @return false
-     * If the job failed
      */
-    bool Execute();
+    void Execute();
 
 private:
     // The function to be executed as part of the job

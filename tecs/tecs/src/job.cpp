@@ -33,10 +33,10 @@ Job::Job(JobFunc func)
 {
 }
 
-bool Job::Execute()
+void Job::Execute()
 {
     assert(func_ != nullptr && "Job function must not be nullptr");
-    return func_();
+    func_();
 }
 
 JobScheduler::JobScheduler() :
