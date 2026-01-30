@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.8)
 # ---- Library ----
 add_library(tecs STATIC
     src/tecs.cpp
-    include/tecs.h
+    include/tecs/tecs.h
 )
 
 # C++20
@@ -62,7 +62,7 @@ install(TARGETS tecs
 
 # Install the public header
 install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/tecs.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/tecs/tecs.h
     DESTINATION include
 )
 

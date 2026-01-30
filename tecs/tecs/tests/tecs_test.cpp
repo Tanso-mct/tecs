@@ -1,5 +1,5 @@
 ﻿#include <gtest/gtest.h>
-#include "tecs.h"
+#include "tecs/tecs.h"
 
 TEST(tecs, smoke)
 {

@@ -1,4 +1,4 @@
-﻿#include "tecs.h"
+﻿#include "tecs/tecs.h"
 
 #include <iostream>
 
