@@ -136,9 +136,12 @@ public:
     class Query
     {
     public:
+        Query(const Context& context);
         virtual ~Query() = default;
 
-        // Add inquiry methods specific to each service here
+    protected:
+        // Reference to the Context
+        const Context& context_;
     };
 
     /**
