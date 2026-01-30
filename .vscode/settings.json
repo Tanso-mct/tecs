@@ -1,5 +1,7 @@
 {
     "cSpell.words": [
         "tecs"
-    ]
+    ],
+    "commentTranslate.targetLanguage": "en",
+    "commentTranslate.hover.enabled": false
 }

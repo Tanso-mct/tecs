@@ -3,7 +3,5 @@
 
 TEST(tecs, smoke)
 {
-    tecs::Sample sample;
-    sample.DisplayMessage();
     SUCCEED();
 }

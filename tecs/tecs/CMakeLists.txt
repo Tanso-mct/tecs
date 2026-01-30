@@ -21,6 +21,12 @@ target_include_directories(tecs
         $<INSTALL_INTERFACE:include>
 )
 
+# Precompiled headers
+target_precompile_headers(tecs
+    PRIVATE
+        "src/pch.h"
+)
+
 # ---- Tests ----
 include(CTest)  # BUILD_TESTING option + enable_testing()
 
