@@ -10,12 +10,14 @@ add_library(tecs STATIC
     include/tecs/tecs.h
     include/tecs/job.h
     include/tecs/service.h
+    include/tecs/ecs.h
 
     # ---- Sources ----
 
     src/tecs.cpp
     src/job.cpp
     src/service.cpp
+    src/ecs.cpp
 )
 
 # C++20
@@ -59,6 +61,7 @@ if (BUILD_TESTING)
     add_executable(tecs_tests
         tests/job.cpp
         tests/service.cpp
+        tests/ecs.cpp
     )
 
     target_link_libraries(tecs_tests
