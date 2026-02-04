@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
 
 // TECS
 #include "tecs/reflection.h"
@@ -178,21 +179,6 @@ public:
 
     /**
      * @brief
-     * Apply configuration data to the component
-     * 
-     * @param config
-     * Unique pointer to the configuration object containing the data to apply
-     * 
-     * @return true 
-     * If the apply was successful
-     * 
-     * @return false 
-     * If the apply failed
-     */
-    virtual bool Apply(std::unique_ptr<Config> config) = 0;
-
-    /**
-     * @brief
      * Export component data to a configuration object
      * 
      * @return std::unique_ptr<Config>
@@ -275,7 +261,80 @@ public:
 
 class World
 {
+public:
+    World() = default;
 
+    ~World() = default;
+
+    // Delete copy constructor and assignment operator
+    World(const World&) = delete;
+    World& operator=(const World&) = delete;
+
+    // Allow move constructor and assignment operator
+    World(World&&) = default;
+    World& operator=(World&&) = default;
+
+    Entity CreateEntity();
+
+    bool CommitEntity(Entity entity);
+
+    bool DestroyEntity(Entity entity);
+
+    bool CheckEntityValidity(Entity entity) const;
+
+    bool AddComponent(Entity entity, uint32_t component_id, std::unique_ptr<Component> component);
+
+    bool RemoveComponent(Entity entity, uint32_t component_id);
+
+    bool HasComponent(Entity entity, uint32_t component_id) const;
+
+    Component* GetComponent(Entity entity, uint32_t component_id);
+
+    template <typename ... Components>
+    class View
+    {
+    public:
+        View(World& world) :
+            world_(world)
+        {
+            // Filter entities that have all specified components
+            // This is a placeholder implementation; actual filtering logic should be implemented
+        }
+
+        struct Iterator
+        {
+            // Iterator type
+            using iterator_category = std::forward_iterator_tag;
+
+            // Iterator distance
+            using difference_type = std::ptrdiff_t;
+
+            // Iterator value type
+            using value_type = std::tuple<Entity, Components&...>;
+
+            Iterator(const World& world, const Entity* ptr, const Entity* end);
+
+        private:
+            const 
+        };
+
+        Iterator begin()
+        {
+            // Return iterator to the beginning of the filtered entities
+        }
+
+        Iterator end()
+        {
+            // Return iterator to the end of the filtered entities
+        }
+
+    private:
+        // Reference to the world object
+        World& world_;
+
+        // Filtered entities with the specified components
+        std::vector<Entity> filtered_entities_;
+    };
 };
 
 /**

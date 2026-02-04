@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <vector>
+#include <span>
 #include <memory>
 #include <queue>
 #include <mutex>

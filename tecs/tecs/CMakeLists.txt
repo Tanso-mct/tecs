@@ -20,8 +20,11 @@ add_library(tecs STATIC
     src/ecs.cpp
 )
 
-# C++20
-target_compile_features(tecs PUBLIC cxx_std_20)
+# C++ 17 standard
+target_compile_features(tecs
+    PUBLIC
+        cxx_std_17
+)
 
 # Public headers
 # - BUILD_INTERFACE: At build time (assuming it is located directly under the source code directory)
