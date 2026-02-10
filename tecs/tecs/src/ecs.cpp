@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "tecs/ecs.h"
 
 namespace tecs
@@ -137,12 +137,14 @@ Entity World::CreateEntity()
 
 bool World::CommitEntity(Entity entity)
 {
-    // Get component ids which the entity has
-    std::vector<uint32_t> component_ids = GetHavingComponents(entity);
+    assert(CheckEntityCondition(entity) && "Entity is invalid or does not meet conditions");
 
-    // For each component id, add the entity to the component to entities map
-    for (const auto& component_id : component_ids)
+    // Add the entity to the component to entities map for each component it has
+    for (const auto& pair : entities_to_components_map_[entity])
+    {
+        uint32_t component_id = pair.first;
         component_to_entities_map_[component_id].insert(entity);
+    }
 
     return true; // Commit successful
 }
@@ -185,6 +187,10 @@ bool World::AddComponent(Entity entity, uint32_t component_id, std::unique_ptr<C
     // Add the component to the entity's component map
     entities_to_components_map_[entity][component_id] = std::move(component);
 
+    // Add the entity to the component to entities map if committed
+    if (component_to_entities_map_.find(component_id) != component_to_entities_map_.end())
+        component_to_entities_map_[component_id].insert(entity);
+
     return true; // Component addition successful
 }
 
@@ -200,8 +206,9 @@ bool World::RemoveComponent(Entity entity, uint32_t component_id)
     // Remove the component from the entity's component map
     entities_to_components_map_[entity].erase(component_id);
 
-    // Also remove the entity from the component to entities map
-    component_to_entities_map_[component_id].erase(entity);
+    // Remove the entity from the component to entities map
+    if (component_to_entities_map_.find(component_id) != component_to_entities_map_.end())
+        component_to_entities_map_[component_id].erase(entity);
 
     return true; // Component removal successful
 }
@@ -257,10 +264,21 @@ std::vector<uint32_t> World::GetHavingComponents(Entity entity) const
     return component_ids; // Return the list of component IDs
 }
 
+EntityHandle World::CreateEntityHandle(Entity entity)
+{
+    return EntityHandle(*this, entity);
+}
+
 const std::set<Entity>& World::View(uint32_t component_id) const
 {
-    static std::set<Entity> empty_set;
-    return empty_set;
+    static const std::set<Entity> empty_set;
+
+    // Check if the component ID exists in the map
+    auto it = component_to_entities_map_.find(component_id);
+    if (it != component_to_entities_map_.end())
+        return it->second; // Return the set of entities having the component
+
+    return empty_set; // Return an empty set if component ID not found
 }
 
 bool World::CheckEntityCondition(Entity entity) const
@@ -273,29 +291,177 @@ bool World::CheckEntityCondition(Entity entity) const
 
     if (entities_[entity.GetID()] != entity)
         return false; // Entity generation mismatch
+
+	return true; // Entity meets all conditions
 }
 
-System::System(const std::vector<uint32_t>& component_ids)
-    : component_ids_(component_ids)
+EntityHandle::EntityHandle(World& world, Entity entity) : 
+    world_(world), 
+    entity_(entity)
 {
 }
 
-void System::Update(World& world, float delta_time)
+bool EntityHandle::IsValid() const
 {
-    // Iterate over each component ID in the order they were provided
-    for (const auto& component_id : component_ids_)
+    return world_.CheckEntityValidity(entity_);
+}
+
+bool EntityHandle::Commit()
+{
+    return world_.CommitEntity(entity_);
+}
+
+bool EntityHandle::AddComponent(uint32_t component_id, std::unique_ptr<Component> component)
+{
+    return world_.AddComponent(entity_, component_id, std::move(component));
+}
+
+bool EntityHandle::RemoveComponent(uint32_t component_id)
+{
+    return world_.RemoveComponent(entity_, component_id);
+}
+
+bool EntityHandle::HasComponent(uint32_t component_id) const
+{
+    return world_.HasComponent(entity_, component_id);
+}
+
+Component* EntityHandle::GetComponent(uint32_t component_id)
+{
+    return world_.GetComponent(entity_, component_id);
+}
+
+std::vector<uint32_t> EntityHandle::GetHavingComponents() const
+{
+    return world_.GetHavingComponents(entity_);
+}
+
+bool EntityHandle::Destroy()
+{
+    return world_.DestroyEntity(entity_);
+}
+
+EntityObject::EntityObject(EntityHandle entity_handle) :
+    entity_handle_(entity_handle)
+{
+}
+
+bool EntityObject::IsValid() const
+{
+    return entity_handle_.IsValid();
+}
+
+void EntityObject::Destroy()
+{
+    // Destroy the associated entity
+    entity_handle_.Destroy();
+}
+
+void EntityObjectGraph::AddEntityObject(std::unique_ptr<EntityObject> entity_object)
+{
+    entity_objects_.push_back(std::move(entity_object));
+}
+
+bool EntityObjectGraph::Compile()
+{
+    // Clear previous update order
+    update_order_.clear();
+
+    // Prepare a list to hold indices of entity objects going to be removed
+    std::vector<size_t> going_to_remove_indices;
+
+    // Iterate over entity objects to collect those going to be removed
+    for (size_t i = 0; i < entity_objects_.size(); ++i)
     {
-        // Iterate over each entity with the current component
-        for (const auto& entity : world.View(component_id))
-        {
-            // Get the component for the entity
-            Component* component = world.GetComponent(entity, component_id);
-            assert(component != nullptr && "Component should not be null");
+        // Get the entity object
+        EntityObject& entity_object = *entity_objects_[i];
 
-            // Update the component with the given delta time
-            component->Update(delta_time);
+        // Check if the entity object is going to be removed
+        if (!entity_object.IsValid())
+            going_to_remove_indices.push_back(i); // Mark for destruction
+    }
+
+    // Remove entity objects marked for destruction
+    if (!going_to_remove_indices.empty())
+    {
+        for (size_t i = going_to_remove_indices.size(); i > 0; --i)
+        {
+            // Get the index of the entity object to remove
+			size_t index = going_to_remove_indices[i - 1];
+
+            // Erase the entity object from the list
+            entity_objects_.erase(entity_objects_.begin() + index);
         }
     }
+
+    // Iterate over entity objects to determine update order
+    for (size_t i = 0; i < entity_objects_.size(); ++i)
+        update_order_.push_back(i); // Simple sequential order for now
+
+    if (update_order_.empty())
+        return false; // Compilation failed (no entity objects)
+
+    return true; // Compilation successful
+}
+
+bool EntityObjectGraph::Update(float delta_time)
+{
+    // Update entity objects in the determined order
+    for (const auto& index : update_order_)
+    {
+        EntityObject* entity_object = entity_objects_[index].get();
+        assert(entity_object != nullptr && "EntityObject should not be null");
+
+        // Update the entity object
+        if (!entity_object->Update(delta_time))
+            return false; // Stop update if any entity object update fails
+    }
+
+    return true; // Update successful
+}
+
+EntityObjectSpawner::EntityObjectSpawner(World& world, EntityObjectGraph& entity_object_graph) :
+    world_(world),
+    entity_object_graph_(entity_object_graph)
+{
+}
+
+bool System::Update(World& world, EntityObjectGraph& entity_object_graph)
+{
+    // TODO: Create a delta time for the update (for simplicity, use a fixed value)
+    float delta_time = 0.016f; // Approx. 60 FPS
+
+    // Loop control flag
+    bool loop_continue = true;
+
+    // Compile the entity object graph
+    loop_continue = entity_object_graph.Compile();
+    if (!loop_continue)
+        return false; // Stop update if compilation fails
+
+    // Update the entity object graph
+    loop_continue = entity_object_graph.Update(delta_time);
+    if (!loop_continue)
+        return false; // Stop update if update stops
+
+    // Iterate over all component IDs
+    for (uint32_t component_id = 0; component_id < Component::GetMaxID(); component_id++)
+    {
+        // Iterate over all entities having the component
+        for (Entity entity : world.View(component_id))
+        {
+            // Get the component
+            Component* component = world.GetComponent(entity, component_id);
+            
+            // Create entity handle
+            EntityHandle entity_handle = world.CreateEntityHandle(entity);
+
+            // Update the component
+            component->Update(entity_handle, delta_time);
+        }
+    }
+
+    return true; // Update successful
 }
 
 } // namespace tecs

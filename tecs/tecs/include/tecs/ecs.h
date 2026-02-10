@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 // STL
 #include <cstdint>
@@ -11,9 +11,13 @@
 // TECS
 #include "tecs/reflection.h"
 #include "tecs/guid.h"
+#include "tecs/class_template.h"
 
 namespace tecs
 {
+
+// Forward declarations
+class EntityHandle;
 
 /**
  * @brief
@@ -275,7 +279,7 @@ public:
      * @param delta_time
      * Time elapsed since the last update
      */
-    virtual void Update(float delta_time) = 0;
+    virtual void Update(EntityHandle entity_handle, float delta_time) = 0;
 
     /**
      * @brief
@@ -294,6 +298,15 @@ public:
      * Reference to the GUID of the component
      */
     const GUID& GetGUID() const { return guid_; }
+
+    /**
+     * @brief
+     * Get the maximum assigned component ID
+     * 
+     * @return uint32_t
+     * The maximum assigned component ID
+     */
+    static uint32_t GetMaxID() { return next_id_; }
 
 protected:
     // Next unique component ID
@@ -350,6 +363,11 @@ public:
     }
 };
 
+/**
+ * @brief
+ * Class representing the world in the ECS architecture
+ * The world manages entities and their components
+ */
 class World
 {
 public:
@@ -453,6 +471,40 @@ public:
 
     /**
      * @brief
+     * Templated version of AddComponent to add a component of type ComponentType to an entity.
+     * 
+     * @param entity
+     * The entity to which the component will be added
+     * 
+     * @param config
+     * Unique pointer to the configuration object for importing component data
+     * 
+     * @return true 
+     * If the component was successfully added
+     * 
+     * @return false 
+     * If the component addition failed
+     */
+    template <typename ComponentType>
+    bool AddComponent(Entity entity, std::unique_ptr<Component::Config> config)
+    {
+        // Create the component
+        std::unique_ptr<ComponentType> component = std::make_unique<ComponentType>();
+
+        // Import the configuration data into the component
+        bool import_result = component->Import(std::move(config));
+        if (!import_result)
+        {
+            std::cerr << "Failed to import configuration data into component." << std::endl;
+            return false; // Import failed
+        }
+
+        // Add the component to the entity
+        return AddComponent(entity, ComponentType::ID(), std::move(component));
+    }
+
+    /**
+     * @brief
      * Remove a component from an entity in the world.
      * 
      * @param entity
@@ -468,6 +520,25 @@ public:
      * If the component removal failed
      */
     bool RemoveComponent(Entity entity, uint32_t component_id);
+
+    /**
+     * @brief
+     * Templated version of RemoveComponent to remove a component of type ComponentType from an entity.
+     * 
+     * @param entity
+     * The entity from which the component will be removed
+     * 
+     * @return true 
+     * If the component was successfully removed
+     * 
+     * @return false 
+     * If the component removal failed
+     */
+    template <typename ComponentType>
+    bool RemoveComponent(Entity entity)
+    {
+        return RemoveComponent(entity, ComponentType::ID());
+    }
 
     /**
      * @brief
@@ -489,6 +560,25 @@ public:
 
     /**
      * @brief
+     * Templated version of HasComponent to check if an entity has a component of type ComponentType.
+     * 
+     * @param entity
+     * The entity to be checked
+     * 
+     * @return true 
+     * If the entity has the component
+     * 
+     * @return false 
+     * If the entity does not have the component
+     */
+    template <typename ComponentType>
+    bool HasComponent(Entity entity) const
+    {
+        return HasComponent(entity, ComponentType::ID());
+    }
+
+    /**
+     * @brief
      * Get a component of an entity in the world.
      * 
      * @param entity
@@ -504,6 +594,23 @@ public:
 
     /**
      * @brief
+     * Templated version of GetComponent to get a component of type ComponentType from an entity.
+     * 
+     * @param entity
+     * The entity from which the component will be retrieved
+     * 
+     * @return ComponentType*
+     * Pointer to the component with the specified type T if found, nullptr otherwise
+     */
+    template <typename ComponentType>
+    ComponentType* GetComponent(Entity entity)
+    {
+        Component* component = GetComponent(entity, ComponentType::ID());
+        return dynamic_cast<ComponentType*>(component);
+    }
+
+    /**
+     * @brief
      * Get a list of component IDs that the entity has.
      * 
      * @param entity
@@ -516,6 +623,18 @@ public:
 
     /**
      * @brief
+     * Create an EntityHandle for the given entity.
+     * 
+     * @param entity
+     * The entity for which the handle will be created
+     * 
+     * @return EntityHandle
+     * The created EntityHandle
+     */
+    EntityHandle CreateEntityHandle(Entity entity);
+
+    /**
+     * @brief
      * Get a view of all entities that have a specific component.
      * 
      * @param component_id
@@ -525,6 +644,19 @@ public:
      * Set of entities that have the specified component
      */
     const std::set<Entity>& View(uint32_t component_id) const;
+
+    /**
+     * @brief
+     * Templated version of View to get all entities that have a component of type ComponentType.
+     * 
+     * @return const std::set<Entity>&
+     * Set of entities that have the specified component type
+     */
+    template <typename ComponentType>
+    const std::set<Entity>& View() const
+    {
+        return View(ComponentType::ID());
+    }
 
 private:
     // Map of entities to their components
@@ -561,6 +693,368 @@ private:
 
 /**
  * @brief
+ * Handle class for managing an entity in the world
+ * Provides convenient methods to interact with the entity's components
+ */
+class EntityHandle
+{
+public:
+    /**
+     * @brief
+     * Construct a new EntityHandle object for the given entity in the world.
+     */
+    EntityHandle(World& world, Entity entity);
+
+    /**
+     * @brief
+     * Destroy the EntityHandle object. No special cleanup is required.
+     */
+    ~EntityHandle() = default;
+
+    /**
+     * @brief
+     * Check if the entity associated with this handle is valid.
+     * 
+     * @return true 
+     * If the entity is valid
+     * 
+     * @return false 
+     * If the entity is invalid
+     */
+    bool IsValid() const;
+
+    /**
+     * @brief
+     * Commit the entity associated with this handle to the world.
+     * 
+     * @return true 
+     * If the entity was successfully committed
+     * 
+     * @return false 
+     * If the entity commit failed
+     */
+    bool Commit();
+
+    /**
+     * @brief
+     * Wrap the AddComponent method of the World class for this entity.
+     * 
+     * @param component_id
+     * The unique component ID
+     * 
+     * @param component
+     * Unique pointer to the component to be added
+     * 
+     * @return true 
+     * If the component was successfully added
+     * 
+     * @return false 
+     * If the component addition failed
+     */
+    bool AddComponent(uint32_t component_id, std::unique_ptr<Component> component);
+
+    /**
+     * @brief
+     * Wrap the templated AddComponent method of the World class for this entity.
+     * 
+     * @param config
+     * Unique pointer to the configuration object for importing component data
+     * 
+     * @return true 
+     * If the component was successfully added
+     * 
+     * @return false 
+     * If the component addition failed
+     */
+    template <typename ComponentType>
+    bool AddComponent(std::unique_ptr<Component::Config> config)
+    {
+        return world_.AddComponent<ComponentType>(entity_, std::move(config));
+    }
+
+    /**
+     * @brief
+     * Wrap the RemoveComponent method of the World class for this entity.
+     * 
+     * @param component_id
+     * The unique component ID
+     * 
+     * @return true 
+     * If the component was successfully removed
+     * 
+     * @return false 
+     * If the component removal failed
+     */
+    bool RemoveComponent(uint32_t component_id);
+
+    /**
+     * @brief
+     * Wrap the templated RemoveComponent method of the World class for this entity.
+     * 
+     * @return true 
+     * If the component was successfully removed
+     * 
+     * @return false 
+     * If the component removal failed
+     */
+    template <typename ComponentType>
+    bool RemoveComponent()
+    {
+        return world_.RemoveComponent<ComponentType>(entity_);
+    }
+
+    /**
+     * @brief
+     * Wrap the HasComponent method of the World class for this entity.
+     * 
+     * @param component_id
+     * The unique component ID
+     * 
+     * @return true 
+     * If the entity has the component
+     * 
+     * @return false 
+     * If the entity does not have the component
+     */
+    bool HasComponent(uint32_t component_id) const;
+
+    /**
+     * @brief
+     * Wrap the templated HasComponent method of the World class for this entity.
+     * 
+     * @return true 
+     * If the entity has the component
+     * 
+     * @return false 
+     * If the entity does not have the component
+     */
+    template <typename ComponentType>
+    bool HasComponent() const
+    {
+        return world_.HasComponent<ComponentType>(entity_);
+    }
+
+    /**
+     * @brief
+     * Wrap the GetComponent method of the World class for this entity.
+     * 
+     * @param component_id
+     * The unique component ID
+     * 
+     * @return Component*
+     * Pointer to the component if found, nullptr otherwise
+     */
+    Component* GetComponent(uint32_t component_id);
+
+    /**
+     * @brief
+     * Wrap the templated GetComponent method of the World class for this entity.
+     * 
+     * @return ComponentType*
+     * Pointer to the component with the specified type T if found, nullptr otherwise
+     */
+    template <typename ComponentType>
+    ComponentType* GetComponent()
+    {
+        return world_.GetComponent<ComponentType>(entity_);
+    }
+
+    /**
+     * @brief
+     * Wrap the GetHavingComponents method of the World class for this entity.
+     * 
+     * @return std::vector<uint32_t>
+     * Vector of component IDs that the entity has
+     */
+    std::vector<uint32_t> GetHavingComponents() const;
+
+    /**
+     * @brief
+     * Wrap the DestroyEntity method of the World class for this entity.
+     */
+    bool Destroy();
+
+private:
+    // Referenced the world
+    World& world_;
+
+    // Referenced entity
+    Entity entity_;
+};
+
+/**
+ * @brief
+ * Base class for all entity objects in the ECS architecture
+ * Entity objects encapsulate behavior and data for specific entities
+ */
+class EntityObject
+{
+public:
+    /**
+     * @brief
+     * Construct a new EntityObject with the given EntityHandle
+     */
+    EntityObject(EntityHandle entity_handle);
+
+    /**
+     * @brief
+     * Destroy the EntityObject. No special cleanup is required.
+     */
+    virtual ~EntityObject() = default;
+
+    /**
+     * @brief
+     * Get the EntityHandle associated with this entity object is valid.
+     * 
+     * @return true
+     * If the entity object is valid
+     * 
+     * @return false
+     * If the entity object is invalid
+     */
+    bool IsValid() const;
+
+    /**
+     * @brief
+     * Destroy the entity object and mark it for removal
+     */
+    void Destroy();
+
+    /**
+     * @brief
+     * Update the entity object with the given delta time
+     * 
+     * @param delta_time
+     * Time elapsed since the last update
+     * 
+     * @return true
+     * If the update will continue
+     * 
+     * @return false
+     * If the update should stop
+     */
+    virtual bool Update(float delta_time) = 0;
+
+private:
+    // Handle to the entity
+    EntityHandle entity_handle_;
+};
+
+/**
+ * @brief
+ * Class representing a graph of entity objects in the ECS architecture
+ * The graph manages multiple entity objects and their dependencies
+ */
+class EntityObjectGraph
+{
+public:
+    /**
+     * @brief
+     * Construct a new EntityObjectGraph. No special initialization is required.
+     */
+    EntityObjectGraph() = default;
+
+    /**
+     * @brief
+     * Destroy the EntityObjectGraph. No special cleanup is required.
+     */
+    ~EntityObjectGraph() = default;
+
+    /**
+     * @brief
+     * Add an entity object to the graph.
+     * 
+     * @param entity_object
+     * Unique pointer to the entity object to be added
+     */
+    void AddEntityObject(std::unique_ptr<EntityObject> entity_object);
+
+    /**
+     * @brief
+     * Compile the entity object graph to determine update order based on dependencies.
+     * 
+     * @return true
+     * If the compilation was successful
+     * 
+     * @return false
+     * If the compilation failed (e.g., due to circular dependencies)
+     */
+    bool Compile();
+
+    /**
+     * @brief
+     * Update the entity objects in the graph with the given delta time.
+     * 
+     * @param delta_time
+     * Time elapsed since the last update
+     * 
+     * @return true
+     * If the update will continue
+     * 
+     * @return false
+     * If the update should stop
+     */
+    bool Update(float delta_time);
+
+private:
+    // List of entity objects in the graph
+    std::vector<std::unique_ptr<EntityObject>> entity_objects_;
+
+    // Update order of entity objects based on dependencies
+    std::vector<size_t> update_order_;
+};
+
+class EntityObjectSpawner :
+    public Singleton<EntityObjectSpawner>
+{
+public:
+    /**
+     * @brief
+     * Construct a new EntityObjectSpawner with the given entity object graph and entity factory.
+     * 
+     * @param entity_object_graph
+     * Reference to the entity object graph
+     * 
+     * @param entity_factory
+     * Reference to the entity factory
+     */
+    EntityObjectSpawner(World& world, EntityObjectGraph& entity_object_graph);
+
+    /**
+     * @brief
+     * Destroy the EntityObjectSpawner. No special cleanup is required.
+     */
+    ~EntityObjectSpawner() = default;
+
+    template <typename EntityObjectType, typename... Args>
+    EntityHandle SpawnEntityObject(Args&&... args)
+    {
+        // Create entity
+        Entity entity = world_.CreateEntity();
+
+        // Create entity handle
+        EntityHandle entity_handle = world_.CreateEntityHandle(entity);
+
+        // Create entity object
+        std::unique_ptr<EntityObjectType> entity_object 
+            = std::make_unique<EntityObjectType>(entity_handle, std::forward<Args>(args)...);
+
+        // Add entity object to graph
+        entity_object_graph_.AddEntityObject(std::move(entity_object));
+
+		return entity_handle;
+    }
+
+private:
+    // Reference to the entity object graph
+    EntityObjectGraph& entity_object_graph_;
+
+    // Reference to the world
+    World& world_;
+};
+
+/**
+ * @brief
  * Base class for all systems in the ECS architecture
  * Systems operate on entities and their components to implement logic
  */
@@ -569,13 +1063,9 @@ class System
 public:
     /**
      * @brief
-     * Construct a new System object with the given component IDs
-     * 
-     * @param component_ids
-     * Vector of component IDs that this system will operate on
-     * The order of updates is determined by the order of these component IDs
+     * Construct a new System object. No special initialization is required.
      */
-    System(const std::vector<uint32_t>& component_ids);
+    System() = default;
 
     /**
      * @brief
@@ -585,13 +1075,13 @@ public:
 
     /**
      * @brief
-     * Update components in the world with the given delta time
+     * Update by using entity object graph.
+     * 
+     * @param entity_object_graph
+     * The entity object graph to be updated
      * 
      * @param world
-     * Reference to the world object
-     * 
-     * @param delta_time
-     * Time elapsed since the last update
+     * The world containing entities and components
      * 
      * @return true
      * If the system update will continue
@@ -599,7 +1089,7 @@ public:
      * @return false
      * If the system update should stop
      */
-    void Update(World& world, float delta_time);
+    bool Update(World& world, EntityObjectGraph& entity_object_graph);
 
 private:
     // List of component IDs that this system operates on
