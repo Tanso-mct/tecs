@@ -916,13 +916,121 @@ public:
 
     /**
      * @brief
+     * Wrap the templated AddComponent method of the EntityHandle class.
+     */
+    template <typename ComponentType>
+    bool AddComponent(std::unique_ptr<Component::Config> config)
+    {
+        return entity_handle_.AddComponent<ComponentType>(std::move(config));
+    }
+
+    /**
+     * @brief
+     * Wrap the templated RemoveComponent method of the EntityHandle class.
+     * 
+     * @return true
+     * If the component was successfully removed
+     * 
+     * @return false
+     * If the component removal failed
+     */
+    template <typename ComponentType>
+    bool RemoveComponent()
+    {
+        return entity_handle_.RemoveComponent<ComponentType>();
+    }
+
+    /**
+     * @brief
+     * Wrap the templated HasComponent method of the EntityHandle class.
+     * 
+     * @return true
+     * If the entity has the component
+     * 
+     * @return false
+     * If the entity does not have the component
+     */
+    template <typename ComponentType>
+    bool HasComponent() const
+    {
+        return entity_handle_.HasComponent<ComponentType>();
+    }
+
+    /**
+     * @brief
+     * Wrap the templated GetComponent method of the EntityHandle class.
+     * 
+     * @return ComponentType*
+     * Pointer to the component with the specified type T if found, nullptr otherwise
+     */
+    template <typename ComponentType>
+    ComponentType* GetComponent()
+    {
+        return entity_handle_.GetComponent<ComponentType>();
+    }
+
+    /**
+     * @brief
+     * Wrap the GetHavingComponents method of the EntityHandle class.
+     * 
+     * @return std::vector<uint32_t>
+     * Vector of component IDs that the entity has
+     */
+    std::vector<uint32_t> GetHavingComponents() const
+    {
+        return entity_handle_.GetHavingComponents();
+    }
+
+    /**
+     * @brief
      * Destroy the entity object and mark it for removal
      */
     void Destroy();
 
     /**
      * @brief
-     * Update the entity object with the given delta time
+     * Get the entity object is started
+     * 
+     * @return true
+     * If the entity object is started
+     * 
+     * @return false
+     * If the entity object is not started
+     */
+    bool IsStarted() const { return is_started_; }
+
+    /**
+     * @brief
+     * Mark the entity object as started
+     */
+    void MarkStarted() { is_started_ = true; }
+
+    /**
+     * @brief
+     * Called when the entity object is created.
+     */
+    virtual void OnCreate()
+    {
+    }
+
+    /**
+     * @brief
+     * Called when the entity object is started.
+     * 
+     * @return true
+     * If the start was successful
+     * 
+     * @return false
+     * If the start failed
+     */
+    virtual bool OnStart()
+    {
+        return true;
+    }
+
+    /**
+     * @brief
+     * Called to update the entity object with the given delta time.
      * 
      * @param delta_time
      * Time elapsed since the last update
@@ -933,11 +1041,25 @@ public:
      * @return false
      * If the update should stop
      */
-    virtual bool Update(float delta_time) = 0;
+    virtual bool OnUpdate(float delta_time)
+    {
+        return true;
+    }
+
+    /**
+     * @brief
+     * Called when the entity object is destroyed.
+     */
+    virtual void OnDestroy()
+    {
+    }
 
 private:
     // Handle to the entity
     EntityHandle entity_handle_;
+
+    // Flag indicating whether the entity object has been started
+    bool is_started_ = false;
 };
 
 /**
@@ -1038,6 +1160,9 @@ public:
         // Create entity object
         std::unique_ptr<EntityObjectType> entity_object 
             = std::make_unique<EntityObjectType>(entity_handle, std::forward<Args>(args)...);
+
+        // Call OnCreate
+        entity_object->OnCreate();
 
         // Add entity object to graph
         entity_object_graph_.AddEntityObject(std::move(entity_object));

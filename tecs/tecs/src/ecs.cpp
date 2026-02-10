@@ -353,6 +353,9 @@ bool EntityObject::IsValid() const
 
 void EntityObject::Destroy()
 {
+    // Call OnDestroy hook
+    OnDestroy();
+
     // Destroy the associated entity
     entity_handle_.Destroy();
 }
@@ -412,9 +415,21 @@ bool EntityObjectGraph::Update(float delta_time)
         EntityObject* entity_object = entity_objects_[index].get();
         assert(entity_object != nullptr && "EntityObject should not be null");
 
-        // Update the entity object
-        if (!entity_object->Update(delta_time))
-            return false; // Stop update if any entity object update fails
+        if (!entity_object->IsStarted())
+        {
+            // Call OnStart
+            if (!entity_object->OnStart())
+                return false; // Stop update if OnStart fails
+
+            // Mark as started
+            entity_object->MarkStarted();
+        }
+        else
+        {
+            // Update the entity object
+            if (!entity_object->OnUpdate(delta_time))
+                return false; // Stop update if any entity object update fails
+        }
     }
 
     return true; // Update successful

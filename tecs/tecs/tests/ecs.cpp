@@ -195,7 +195,18 @@ public:
 
     ~SampleObject() override = default;
 
-    bool Update(float delta_time) override
+    void OnCreate() override
+    {
+        std::cout << "SampleObject created." << std::endl;
+    }
+
+    bool OnStart() override
+    {
+        std::cout << "SampleObject started." << std::endl;
+        return true;
+    }
+
+    bool OnUpdate(float delta_time) override
     {
         // Get command from user
         std::cout << "Enter command (type 'help' for options): ";
@@ -214,12 +225,48 @@ public:
         }
         else if (command == "status")
         {
+            // Get transform component
+            TransformComponent* transform = GetComponent<TransformComponent>();
+            assert(transform != nullptr && "TransformComponent should not be null");
+
+            // Get velocity component
+            VelocityComponent* velocity = GetComponent<VelocityComponent>();
+            assert(velocity != nullptr && "VelocityComponent should not be null");
+
+            // Display status
+            std::cout << "Entity Status:\n";
+            std::cout << "Position: (" << transform->GetX() << ", " << transform->GetY() << ")\n";
+            std::cout << "Velocity: (" << velocity->GetVX() << ", " << velocity->GetVY() << ")\n";
         }
         else if (command == "setpos")
         {
+            float x, y;
+            std::cin >> x >> y;
+
+            // Get transform component
+            TransformComponent* transform = GetComponent<TransformComponent>();
+            assert(transform != nullptr && "TransformComponent should not be null");
+
+            // Set new position
+            transform->SetX(x);
+            transform->SetY(y);
+
+            std::cout << "Position set to (" << x << ", " << y << ")\n";
         }
         else if (command == "setvel")
         {
+            float vx, vy;
+            std::cin >> vx >> vy;
+
+            // Get velocity component
+            VelocityComponent* velocity = GetComponent<VelocityComponent>();
+            assert(velocity != nullptr && "VelocityComponent should not be null");
+
+            // Set new velocity
+            velocity->SetVX(vx);
+            velocity->SetVY(vy);
+
+            std::cout << "Velocity set to (" << vx << ", " << vy << ")\n";
         }
         else if (command == "destroy")
         {
@@ -237,6 +284,11 @@ public:
         }
 
         return true; // Continue updating
+    }
+
+    void OnDestroy() override
+    {
+        std::cout << "SampleObject destroyed." << std::endl;
     }
 };
 
