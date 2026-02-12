@@ -8,10 +8,10 @@
 #include <vector>
 #include <set>
 #include <chrono>
+#include <initguid.h>
 
 // TECS
 #include "tecs/reflection.h"
-#include "tecs/guid.h"
 #include "tecs/class_template.h"
 
 namespace tecs
