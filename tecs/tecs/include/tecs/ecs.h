@@ -7,6 +7,7 @@
 #include <string_view>
 #include <vector>
 #include <set>
+#include <chrono>
 
 // TECS
 #include "tecs/reflection.h"
@@ -1220,6 +1221,12 @@ private:
     // List of component IDs that this system operates on
     // Updates are called in the order of these components.
     const std::vector<uint32_t> component_ids_;
+
+    // Flag indicating whether this is the first update
+    bool is_first_update_ = true;
+
+    // Time point of the last update
+    std::chrono::steady_clock::time_point last_update_time_;
 };
 
 } // namespace tecs

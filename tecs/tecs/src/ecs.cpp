@@ -443,8 +443,19 @@ EntityObjectSpawner::EntityObjectSpawner(World& world, EntityObjectGraph& entity
 
 bool System::Update(World& world, EntityObjectGraph& entity_object_graph)
 {
-    // TODO: Create a delta time for the update (for simplicity, use a fixed value)
-    float delta_time = 0.016f; // Approx. 60 FPS
+    if (is_first_update_)
+    {
+        // Initialize last update time on first update
+        last_update_time_ = std::chrono::steady_clock::now();
+        is_first_update_ = false;
+    }
+
+    // Calculate delta time since last update
+    auto current_time = std::chrono::steady_clock::now();
+    float delta_time = (current_time - last_update_time_).count();
+
+    // Update last update time
+    last_update_time_ = current_time;
 
     // Loop control flag
     bool loop_continue = true;
