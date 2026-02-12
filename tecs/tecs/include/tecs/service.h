@@ -10,6 +10,7 @@
 
 // TECS
 #include "tecs/job.h" // JobScheduler
+#include "tecs/class_template.h" // Singleton
 
 namespace tecs
 {
@@ -229,6 +230,9 @@ public:
     virtual bool PostUpdate() = 0;
 
 protected:
+    // Static id
+    static uint32_t next_id_;
+
     // Reference to the JobScheduler
     JobScheduler& job_scheduler_;
 
@@ -292,6 +296,41 @@ protected:
     TaskListQueue task_list_queue_;
 };
 
+/**
+ * @brief
+ * Template base class for services of type T
+ * This class provides a static method to get the unique ID of the service type T
+ */
+template <typename T>
+class ServiceBase :
+    public Service
+{
+public:
+    /**
+     * @brief
+     * Construct a new Service Base object, No special initialization is required.
+     */
+    virtual ~ServiceBase() = default;
+
+    /**
+     * @brief
+     * Get the static ID of the service type T
+     * 
+     * @return uint32_t
+     * The static ID of the service type T
+     */
+    static uint32_t ID()
+    {
+        static uint32_t id = next_id_++;
+        return id;
+    }
+};
+
+/**
+ * @brief
+ * Service Proxy class for providing a simplified interface to interact with services
+ * This class allows you to submit tasks and access the service context without directly interacting with the Service
+ */
 class ServiceProxy
 {
 public:
@@ -326,9 +365,101 @@ public:
         return service_.GetContext().As<T>();
     }
 
+    /**
+     * @brief
+     * Clone the ServiceProxy
+     * 
+     * @return std::unique_ptr<ServiceProxy>
+     * Unique pointer to the cloned ServiceProxy
+     */
+    std::unique_ptr<ServiceProxy> Clone() const;
+
 private:
     // Reference to the proxied Service
     Service& service_;
+};
+
+/**
+ * @brief
+ * Service Proxy Manager class for managing multiple service proxies
+ * This class is a singleton and provides a centralized way to access service proxies
+ */
+class ServiceProxyManager :
+    public Singleton<ServiceProxyManager>
+{
+public:
+    /**
+     * @brief
+     * Construct a new Service Proxy Manager object. No special initialization is required.
+     */
+    ServiceProxyManager() = default;
+
+    /**
+     * @brief
+     * Destroy the Service Proxy Manager object. No special cleanup is required.
+     */
+    ~ServiceProxyManager() override = default;
+
+    /**
+     * @brief
+     * Register a ServiceProxy for a specific service type T
+     * 
+     * @param service_id
+     * The unique ID of the service type T
+     * 
+     * @param proxy
+     * Unique pointer to the ServiceProxy to be registered
+     */
+    void RegisterServiceProxy(uint32_t service_id, std::unique_ptr<ServiceProxy> proxy);
+
+    /**
+     * @brief
+     * Template wrapper for RegisterServiceProxy to register a ServiceProxy for a specific service type T
+     * 
+     * @param proxy
+     * Unique pointer to the ServiceProxy to be registered
+     */
+    template <typename T>
+    void RegisterServiceProxy(std::unique_ptr<ServiceProxy> proxy)
+    {
+        // Get the service ID for the specified service type T
+        uint32_t service_id = ServiceBase<T>::ID();
+
+        // Register the ServiceProxy for the specified service type T
+        RegisterServiceProxy(service_id, std::move(proxy));
+    }
+
+    /**
+     * @brief
+     * Get the ServiceProxy for a specific service type T
+     * 
+     * @return ServiceProxy&
+     * Reference to the ServiceProxy for the specified service type T
+     */
+    std::unique_ptr<ServiceProxy> GetServiceProxy(uint32_t service_id);
+
+    /**
+     * @brief
+     * Template wrapper for GetServiceProxy to get the proxy for a specific service type T
+     * 
+     * @return ServiceProxy&
+     * Reference to the ServiceProxy for the specified service type T
+     */
+    template <typename T>
+    std::unique_ptr<ServiceProxy> GetServiceProxy()
+    {
+        // Get the service ID for the specified service type T
+        uint32_t service_id = ServiceBase<T>::ID();
+
+        return GetServiceProxy(service_id);
+    }
+
+private:
+    // Internal storage for service proxies, mapped by service ID
+    std::unordered_map<uint32_t, std::unique_ptr<ServiceProxy>> service_proxies_;
+
+    // Mutex for thread-safe access to the service proxies map
+    std::mutex mutex_;
 };
 
 } // namespace tecs

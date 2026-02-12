@@ -101,8 +101,17 @@ TEST(tecs, use_service)
     // Create sample service
     tecs::test::SampleService sample_service(job_scheduler);
 
-    // Create service proxy for sample service
-    tecs::ServiceProxy sample_proxy(sample_service);
+    // Create singleton service proxy manager
+    tecs::ServiceProxyManager service_proxy_manager;
+
+    {
+        // Create service proxy for sample service
+        tecs::ServiceProxy sample_proxy(sample_service);
+
+        // Register sample service proxy
+        service_proxy_manager.RegisterServiceProxy<tecs::test::SampleService>(
+            std::make_unique<tecs::ServiceProxy>(sample_service));
+    }
 
     {
         // Create task list
@@ -111,8 +120,12 @@ TEST(tecs, use_service)
         // Modify context data task
         tecs::test::ModifyContextData(task_list);
 
+        // Get service proxy for sample service
+        std::unique_ptr<tecs::ServiceProxy> sample_proxy =
+            service_proxy_manager.GetServiceProxy<tecs::test::SampleService>();
+
         // Submit task list to the service via proxy
-        sample_proxy.SumbitTaskList(std::move(task_list));
+        sample_proxy->SumbitTaskList(std::move(task_list));
     }
 
     // Run service update phases
@@ -120,7 +133,13 @@ TEST(tecs, use_service)
     ASSERT_TRUE(sample_service.Update());
     ASSERT_TRUE(sample_service.PostUpdate());
 
-    // Verify that the context data was modified by the task
-    const tecs::test::SampleContext* context = sample_proxy.GetContext<tecs::test::SampleContext>();
-    EXPECT_EQ(context->sample_data_, tecs::test::kModifiedValue);
+    {
+        // Get service proxy for sample service
+        std::unique_ptr<tecs::ServiceProxy> sample_proxy =
+            service_proxy_manager.GetServiceProxy<tecs::test::SampleService>();
+
+        // Verify that the context data was modified by the task
+        const tecs::test::SampleContext* context = sample_proxy->GetContext<tecs::test::SampleContext>();
+        EXPECT_EQ(context->sample_data_, tecs::test::kModifiedValue);
+    }
 }

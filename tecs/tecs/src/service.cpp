@@ -4,6 +4,9 @@
 namespace tecs
 {
 
+// Initialize static member
+uint32_t Service::next_id_ = 0;
+
 Service::Task::Task(Func func) : 
     func_(func)
 {
@@ -93,6 +96,43 @@ ServiceProxy::ServiceProxy(Service& service) :
 void ServiceProxy::SumbitTaskList(Service::TaskList tasks)
 {
     service_.SumbitTaskList(std::move(tasks));
+}
+
+std::unique_ptr<ServiceProxy> ServiceProxy::Clone() const
+{
+    return std::make_unique<ServiceProxy>(service_);
+}
+
+void ServiceProxyManager::RegisterServiceProxy(uint32_t service_id, std::unique_ptr<ServiceProxy> proxy)
+{
+    // Lock the mutex for thread-safe access
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    auto it = service_proxies_.find(service_id);
+    if (it != service_proxies_.end())
+    {
+        // If a proxy for this service ID already exists, replace it
+        it->second = std::move(proxy);
+    }
+    else
+    {
+        // Otherwise, insert the new proxy
+        service_proxies_.emplace(service_id, std::move(proxy));
+    }
+}
+
+std::unique_ptr<ServiceProxy> ServiceProxyManager::GetServiceProxy(uint32_t service_id)
+{
+    // Lock the mutex for thread-safe access
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    // Find the ServiceProxy for the specified service ID
+    auto it = service_proxies_.find(service_id);
+    assert(it != service_proxies_.end() && "ServiceProxy for the specified service ID not found");
+
+    // Return a clone of the ServiceProxy
+    assert(it->second && "ServiceProxy for the specified service ID is nullptr");
+    return it->second->Clone(); // Return a clone of the ServiceProxy
 }
 
 } // namespace tecs
