@@ -82,6 +82,9 @@ void ModifyContextData(tecs::Service::TaskList& task_list)
         {
             // Modify the sample context data
             sample_context->sample_data_ = tecs::test::kModifiedValue;
+
+            // Simulate some work
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }));
 
         // Wait for the job to complete
