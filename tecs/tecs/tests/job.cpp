@@ -10,19 +10,22 @@
 
 TEST(tecs, schedule_job)
 {
+    // Get cpu core count
+    uint32_t num_cores = std::thread::hardware_concurrency();
+    EXPECT_NE(num_cores, 0);
+
     // Create job scheduler
-    tecs::JobScheduler job_scheduler;
+    tecs::JobScheduler job_scheduler(num_cores);
 
     // Result variable
     int result = 0;
-    const int kExpectedResult = 1000000000;
+    const int kExpectedResult = 100;
 
     // Create job
     tecs::Job job([&result, kExpectedResult]()
     {
-        // Simulate some work
-        for (int i = 0; i < kExpectedResult; ++i)
-            result++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Simulate some delay
+        result = kExpectedResult;
     });
 
     // Start time measurement
@@ -47,8 +50,12 @@ TEST(tecs, schedule_job)
 
 TEST(tecs, schedule_multiple_jobs)
 {
+    // Get cpu core count
+    uint32_t num_cores = std::thread::hardware_concurrency();
+    EXPECT_NE(num_cores, 0);
+
     // Create job scheduler
-    tecs::JobScheduler job_scheduler;
+    tecs::JobScheduler job_scheduler(num_cores);
 
     size_t num_jobs = 3;
 
@@ -56,30 +63,27 @@ TEST(tecs, schedule_multiple_jobs)
     int result_1 = 0;
     int result_2 = 0;
     int result_3 = 0;
-    const int kExpectedResult = 1000000000;
+    const int kExpectedResult = 100;
 
     // Create job 1
     tecs::Job job([&result_1, kExpectedResult]()
     {
-        // Simulate some work
-        for (int i = 0; i < kExpectedResult; ++i)
-            result_1++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Simulate some delay
+        result_1 = kExpectedResult;
     });
 
     // Create job 2
     tecs::Job job2([&result_2, kExpectedResult]()
     {
-        // Simulate some work
-        for (int i = 0; i < kExpectedResult; ++i)
-            result_2++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Simulate some delay
+        result_2 = kExpectedResult;
     });
 
     // Create job 3
     tecs::Job job3([&result_3, kExpectedResult]()
     {
-        // Simulate some work
-        for (int i = 0; i < kExpectedResult; ++i)
-            result_3++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Simulate some delay
+        result_3 = kExpectedResult;
     });
 
     // Start time measurement

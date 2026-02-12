@@ -95,8 +95,12 @@ void ModifyContextData(tecs::Service::TaskList& task_list)
 
 TEST(tecs, use_service)
 {
+    // Get cpu core count
+    uint32_t num_cores = std::thread::hardware_concurrency();
+    EXPECT_NE(num_cores, 0);
+
     // Create job scheduler
-    tecs::JobScheduler job_scheduler;
+    tecs::JobScheduler job_scheduler(num_cores);
 
     // Create sample service
     tecs::test::SampleService sample_service(job_scheduler);

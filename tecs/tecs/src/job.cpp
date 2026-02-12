@@ -39,10 +39,12 @@ void Job::Execute()
     func_();
 }
 
-JobScheduler::JobScheduler() :
-    stop_flag_(false), 
-    worker_thread_(&JobScheduler::Work, this)
+JobScheduler::JobScheduler(uint32_t num_worker_threads) :
+    stop_flag_(false)
 {
+    // Start the specified number of worker threads
+    for (uint32_t i = 0; i < num_worker_threads; ++i)
+        worker_thread_.emplace_back(&JobScheduler::Work, this);
 }
 
 JobScheduler::~JobScheduler()
@@ -51,9 +53,10 @@ JobScheduler::~JobScheduler()
     stop_flag_.store(true);
     cv_.notify_all();
 
-    // Join the worker thread
-    if (worker_thread_.joinable())
-        worker_thread_.join();
+    // Join the worker threads
+    for (std::thread& thread : worker_thread_)
+        if (thread.joinable())
+            thread.join();
 }
 
 JobHandle JobScheduler::ScheduleJob(Job job)

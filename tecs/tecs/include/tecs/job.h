@@ -8,6 +8,7 @@
 #include <memory>
 #include <queue>
 #include <thread>
+#include <vector>
 
 namespace tecs
 {
@@ -132,8 +133,11 @@ public:
      * @brief 
      * Construct a new Job Scheduler object
      * Worker thread is started upon construction
+     * 
+     * @param num_worker_threads
+     * Number of worker threads to process jobs
      */
-    JobScheduler();
+    JobScheduler(uint32_t num_worker_threads);
 
     /**
      * @brief
@@ -191,8 +195,8 @@ private:
     // Atomic flag to signal the worker thread to stop
     std::atomic<bool> stop_flag_{false};
 
-    // Worker thread for processing jobs
-    std::thread worker_thread_;
+    // Worker threads for processing jobs
+    std::vector<std::thread> worker_thread_;
 
     /**
      * @brief
