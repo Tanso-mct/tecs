@@ -27,7 +27,14 @@ public:
     {
     public:
         TransformConfig() : 
-            Config(std::make_unique<Reflection>())
+            Config(std::make_unique<Reflection>(
+                reinterpret_cast<std::byte*>(this), []
+                {
+                    std::vector<std::unique_ptr<ReflectionField>> fields;
+                    fields.push_back(std::make_unique<ReflectionFieldType<float>>("x", offsetof(TransformConfig, x)));
+                    fields.push_back(std::make_unique<ReflectionFieldType<float>>("y", offsetof(TransformConfig, y)));
+                    return fields;
+                }()))
         {
 
         }
@@ -104,7 +111,14 @@ public:
     {
     public:
         VelocityConfig() : 
-            Config(std::make_unique<Reflection>())
+            Config(std::make_unique<Reflection>(
+                reinterpret_cast<std::byte*>(this), []
+                {
+                    std::vector<std::unique_ptr<ReflectionField>> fields;
+                    fields.push_back(std::make_unique<ReflectionFieldType<float>>("vx", offsetof(VelocityConfig, vx)));
+                    fields.push_back(std::make_unique<ReflectionFieldType<float>>("vy", offsetof(VelocityConfig, vy)));
+                    return fields;
+                }()))
         {
 
         }

@@ -12,6 +12,7 @@ add_library(tecs STATIC
     include/tecs/service.h
     include/tecs/ecs.h
     include/tecs/class_template.h
+    include/tecs/reflection.h
 
     # ---- Sources ----
 
@@ -19,6 +20,7 @@ add_library(tecs STATIC
     src/job.cpp
     src/service.cpp
     src/ecs.cpp
+    src/reflection.cpp
 )
 
 # C++ 17 standard
@@ -66,6 +68,7 @@ if (BUILD_TESTING)
         tests/job.cpp
         tests/service.cpp
         tests/ecs.cpp
+        tests/reflection.cpp
     )
 
     target_link_libraries(tecs_tests
