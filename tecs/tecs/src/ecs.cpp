@@ -446,13 +446,14 @@ bool System::Update(World& world, EntityObjectGraph& entity_object_graph)
     if (is_first_update_)
     {
         // Initialize last update time on first update
-        last_update_time_ = std::chrono::steady_clock::now();
+        last_update_time_ = std::chrono::high_resolution_clock::now();
         is_first_update_ = false;
     }
 
     // Calculate delta time since last update
-    auto current_time = std::chrono::steady_clock::now();
-    float delta_time = (current_time - last_update_time_).count();
+    std::chrono::high_resolution_clock::time_point current_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> elapsed = current_time - last_update_time_;
+    float delta_time = elapsed.count();
 
     // Update last update time
     last_update_time_ = current_time;

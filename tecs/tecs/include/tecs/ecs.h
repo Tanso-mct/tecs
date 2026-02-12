@@ -1226,7 +1226,7 @@ private:
     bool is_first_update_ = true;
 
     // Time point of the last update
-    std::chrono::steady_clock::time_point last_update_time_;
+    std::chrono::high_resolution_clock::time_point last_update_time_;
 };
 
 } // namespace tecs
