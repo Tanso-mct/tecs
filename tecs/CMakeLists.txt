@@ -11,8 +11,8 @@ endif()
 
 project ("tecs")
 
-# Set C++20 globally.
-set(CMAKE_CXX_STANDARD 20)
+# Set C++17 as the required standard.
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 

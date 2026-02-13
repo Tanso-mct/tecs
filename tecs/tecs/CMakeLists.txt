@@ -5,12 +5,29 @@ cmake_minimum_required(VERSION 3.8)
 
 # ---- Library ----
 add_library(tecs STATIC
+    # ---- Headers ----
+
+    include/tecs/tecs.h
+    include/tecs/job.h
+    include/tecs/service.h
+    include/tecs/ecs.h
+    include/tecs/class_template.h
+    include/tecs/reflection.h
+
+    # ---- Sources ----
+
     src/tecs.cpp
-    include/tecs.h
+    src/job.cpp
+    src/service.cpp
+    src/ecs.cpp
+    src/reflection.cpp
 )
 
-# C++20
-target_compile_features(tecs PUBLIC cxx_std_20)
+# C++ 17 standard
+target_compile_features(tecs
+    PUBLIC
+        cxx_std_17
+)
 
 # Public headers
 # - BUILD_INTERFACE: At build time (assuming it is located directly under the source code directory)
@@ -19,6 +36,18 @@ target_include_directories(tecs
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
+)
+
+# Precompiled headers
+target_precompile_headers(tecs
+    PRIVATE
+        "src/pch.h"
+)
+
+# Compile options
+target_compile_options(tecs 
+    PRIVATE
+        $<$<CXX_COMPILER_ID:MSVC>:/W4>
 )
 
 # ---- Tests ----
@@ -36,7 +65,10 @@ if (BUILD_TESTING)
     FetchContent_MakeAvailable(googletest)
 
     add_executable(tecs_tests
-        tests/tecs_test.cpp
+        tests/job.cpp
+        tests/service.cpp
+        tests/ecs.cpp
+        tests/reflection.cpp
     )
 
     target_link_libraries(tecs_tests
@@ -62,7 +94,7 @@ install(TARGETS tecs
 
 # Install the public header
 install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/tecs.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/tecs/tecs.h
     DESTINATION include
 )
 
