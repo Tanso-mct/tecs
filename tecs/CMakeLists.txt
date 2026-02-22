@@ -18,4 +18,4 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Includes subprojects.
 add_subdirectory ("tecs")
-add_subdirectory ("game/platform_window")
+add_subdirectory ("game/window")

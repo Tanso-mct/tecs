@@ -1,46 +1,47 @@
-﻿# CMakeLists.txt: platform_window' CMake project. Including the source, define the following:
+# CMakeLists.txt: window' CMake project. Including the source, define the following:
 # The project-specific logic is here.
 #
 cmake_minimum_required(VERSION 3.8)
 
 # Project name and language
-project("platform_window" LANGUAGES CXX)
+project("window" LANGUAGES CXX)
 
 # ---- Library ----
-add_library(platform_window
+add_library(window
     # ---- Headers ----
 
-    include/platform_window/game.h
+    include/window/window.h
+    include/window/window_win32.h
 
     # ---- Sources ----
 
-    src/game.cpp
+    src/window_win32.cpp
 )
 
 # Public headers
 # - BUILD_INTERFACE: At build time (assuming it is located directly under the source code directory)
 # - INSTALL_INTERFACE: After installation (assuming it is placed under "include")
-target_include_directories(platform_window
+target_include_directories(window
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
 
 # Precompiled headers
-target_precompile_headers(platform_window
+target_precompile_headers(window
     PRIVATE
         "src/pch.h"
 )
 
 # Compile options
-target_compile_options(platform_window
+target_compile_options(window
     PRIVATE
         $<$<CXX_COMPILER_ID:MSVC>:/W4>
 )
 
 # Link library
-target_link_libraries(platform_window
-    PUBLIC
+target_link_libraries(window
+    PRIVATE
         tecs
 )
 
@@ -58,26 +59,27 @@ if (BUILD_TESTING)
     )
     FetchContent_MakeAvailable(googletest)
 
-    add_executable(platform_window_tests
-        tests/test.cpp
+    add_executable(window_tests
+        tests/window.cpp
     )
 
-    target_link_libraries(platform_window_tests
+    target_link_libraries(window_tests
         PRIVATE
-            platform_window
+            tecs
+            window
             GTest::gtest_main
     )
 
     include(GoogleTest)
-    gtest_discover_tests(platform_window_tests)
+    gtest_discover_tests(window_tests)
 endif()
 
 # ---- Installation ----
 include(CMakePackageConfigHelpers)
 
 # Install libraries (archives/shared/executable files)
-install(TARGETS platform_window
-    EXPORT platform_windowTargets
+install(TARGETS window
+    EXPORT windowTargets
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
@@ -85,33 +87,33 @@ install(TARGETS platform_window
 
 # Install the public header
 install(DIRECTORY
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/platform_window/
-    DESTINATION include/platform_window
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/window/
+    DESTINATION include/window
 )
 
 # Install the export file (target information)
-install(EXPORT platform_windowTargets
-    NAMESPACE platform_window::
-    DESTINATION lib/cmake/platform_window
+install(EXPORT windowTargets
+    NAMESPACE tecs::game::window::
+    DESTINATION lib/cmake/window
 )
 
 # Version File Generation
 write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/platform_windowConfigVersion.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/windowConfigVersion.cmake"
     VERSION 1.0.0
     COMPATIBILITY AnyNewerVersion
 )
 
 # Config File Generation
 configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/platform_windowConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/platform_windowConfig.cmake"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/windowConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/windowConfig.cmake"
     @ONLY
 )
 
 # Install the Config/Version file
 install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/platform_windowConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/platform_windowConfigVersion.cmake"
-    DESTINATION lib/cmake/platform_window
+    "${CMAKE_CURRENT_BINARY_DIR}/windowConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/windowConfigVersion.cmake"
+    DESTINATION lib/cmake/window
 )
