@@ -1,4 +1,4 @@
-﻿# CMakeLists.txt: tecs' CMake project. Including the source, define the following:
+# CMakeLists.txt: tecs' CMake project. Including the source, define the following:
 # The project-specific logic is here.
 #
 cmake_minimum_required(VERSION 3.8)
@@ -9,7 +9,6 @@ add_library(tecs STATIC
 
     include/tecs/tecs.h
     include/tecs/job.h
-    include/tecs/service.h
     include/tecs/ecs.h
     include/tecs/class_template.h
     include/tecs/reflection.h
@@ -18,7 +17,6 @@ add_library(tecs STATIC
 
     src/tecs.cpp
     src/job.cpp
-    src/service.cpp
     src/ecs.cpp
     src/reflection.cpp
 )
@@ -66,7 +64,6 @@ if (BUILD_TESTING)
 
     add_executable(tecs_tests
         tests/job.cpp
-        tests/service.cpp
         tests/ecs.cpp
         tests/reflection.cpp
     )

@@ -9,6 +9,93 @@ namespace tecs::test
 
 /**
  * @brief
+ * Sample implementation of System::Context for testing purposes
+ */
+class SampleContext : public System::Context
+{
+public:
+    SampleContext() = default;
+    ~SampleContext() override = default;
+
+    int sample_data_ = 0;
+};
+
+class SampleSystem : public System
+{
+public:
+    SampleSystem(JobScheduler& job_scheduler) :
+        System(job_scheduler, std::make_unique<SampleContext>())
+    {
+    }
+
+    ~SampleSystem() override = default;
+
+    bool PreUpdate() override
+    {
+        // Sample pre-update logic
+        return true;
+    }
+
+    bool Update() override
+    {
+        // Dequeue all task lists
+        std::vector<TaskList> all_tasks = task_list_queue_.Dequeue();
+
+        // Execute each task in each task list
+        for (auto& tasks : all_tasks)
+        {
+            for (auto& task : tasks)
+            {
+                if (!task.Execute(*context_, job_scheduler_))
+                    return false; // Task execution failed
+            }
+        }
+
+        return true;
+    }
+
+    bool PostUpdate() override
+    {
+        // Sample post-update logic
+        return true;
+    }
+
+};
+
+// Constant for modified value in tests
+constexpr const int kModifiedValue = 100;
+
+/**
+ * @brief
+ * Helper function to create a task that modifies the SampleContext data
+ */
+void ModifyContextData(tecs::System::TaskList& task_list)
+{
+    task_list.emplace_back(tecs::System::Task(
+        [](tecs::System::Context& context_arg, tecs::JobScheduler& job_scheduler_arg) -> bool
+    {
+        // Cast context to SampleContext
+        tecs::test::SampleContext* sample_context = context_arg.As<tecs::test::SampleContext>();
+
+        // Schedule a job to modify the context data
+        tecs::JobHandle job_handle = job_scheduler_arg.ScheduleJob(tecs::Job([sample_context]()
+        {
+            // Modify the sample context data
+            sample_context->sample_data_ = tecs::test::kModifiedValue;
+
+            // Simulate some work
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        }));
+
+        // Wait for the job to complete
+        job_handle.Wait();
+
+        return true; // Indicate success
+    }));
+}
+
+/**
+ * @brief
  * Sample component representing a Transform
  */
 class TransformComponent : public ComponentBase<TransformComponent>
@@ -36,7 +123,6 @@ public:
                     return fields;
                 }()))
         {
-
         }
 
         float x = 0.0f;
@@ -120,7 +206,6 @@ public:
                     return fields;
                 }()))
         {
-
         }
 
         float vx = 0.0f;
@@ -186,124 +271,98 @@ private:
     float vy_ = 0.0f;
 };
 
-class SampleObject : public EntityObject
+class BehaviorComponent : public ComponentBase<BehaviorComponent>
 {
 public:
-    SampleObject(EntityHandle entity_handle) :
-        EntityObject(entity_handle)
+    BehaviorComponent() :
+        ComponentBase<BehaviorComponent>("Behavior", GUID())
     {
-        // Add transform component
-        std::unique_ptr<TransformComponent::TransformConfig> transform_config 
-            = std::make_unique<TransformComponent::TransformConfig>();
-        transform_config->x = 0.0f;
-        transform_config->y = 0.0f;
-        entity_handle.AddComponent<TransformComponent>(std::move(transform_config));
-
-        // Add velocity component
-        std::unique_ptr<VelocityComponent::VelocityConfig> velocity_config
-            = std::make_unique<VelocityComponent::VelocityConfig>();
-        velocity_config->vx = 1.0f;
-        velocity_config->vy = 1.0f;
-        entity_handle.AddComponent<VelocityComponent>(std::move(velocity_config));
     }
 
-    ~SampleObject() override = default;
+    ~BehaviorComponent() = default;
 
-    void OnCreate() override
+    // --- Component interface implementation ---
+
+    class BehaviorConfig : public Config
     {
-        std::cout << "SampleObject created." << std::endl;
+    public:
+        BehaviorConfig() : 
+            Config(std::make_unique<Reflection>(
+                reinterpret_cast<std::byte*>(this), []
+                {
+                    std::vector<std::unique_ptr<ReflectionField>> fields;
+                    fields.push_back(std::make_unique<ReflectionFieldType<bool>>("is_active", offsetof(BehaviorConfig, is_active)));
+                    fields.push_back(std::make_unique<ReflectionFieldType<std::string>>("behavior_name", offsetof(BehaviorConfig, behavior_name)));
+                    return fields;
+                }()))
+        {
+        }
+
+        bool is_active = true;
+        std::string behavior_name;
+    };
+
+    bool Import(std::unique_ptr<Config> config) override
+    {
+        // Cast the config to BehaviorConfig
+        BehaviorConfig* behavior_config = dynamic_cast<BehaviorConfig*>(config.get());
+        if (!behavior_config)
+        {
+            std::cerr << "Invalid config type for BehaviorComponent import." << std::endl;
+            return false; // Invalid config type
+        }
+
+        // Import behavior data
+        is_active_ = behavior_config->is_active;
+        behavior_name_ = behavior_config->behavior_name;
+
+        return true; // Import successful
     }
 
-    bool OnStart() override
+    std::unique_ptr<Config> Export() const override
     {
-        std::cout << "SampleObject started." << std::endl;
-        return true;
+        // Create a new BehaviorConfig
+        std::unique_ptr<BehaviorConfig> config = std::make_unique<BehaviorConfig>();
+
+        // Export behavior data
+        config->is_active = is_active_;
+        config->behavior_name = behavior_name_;
+
+        return config; // Return the exported config
     }
 
-    bool OnUpdate(float delta_time) override
+    void Update(EntityHandle entity_handle, float delta_time) override
     {
-        // Get command from user
-        std::cout << "Enter command (type 'help' for options): ";
-        std::string command;
-        std::cin >> command;
+        std::cout << "Updating BehaviorComponent with delta_time: " << delta_time << std::endl;
+        std::cout << "Current Behavior: " << behavior_name_ << std::endl;
+        std::cout << "Is Active: " << (is_active_ ? "Yes" : "No") << std::endl;
 
-        if (command == "help")
-        {
-            std::cout << "Available commands:\n";
-            std::cout << "  help       - Show this help message\n";
-            std::cout << "  status     - Show current position and velocity\n";
-            std::cout << "  setpos x y - Set position to (x, y)\n";
-            std::cout << "  setvel vx vy - Set velocity to (vx, vy)\n";
-            std::cout << "  destroy    - Destroy this entity object\n";
-            std::cout << "  exit       - Exit the update loop\n";
-        }
-        else if (command == "status")
-        {
-            // Get transform component
-            TransformComponent* transform = GetComponent<TransformComponent>();
-            assert(transform != nullptr && "TransformComponent should not be null");
+        // Get system proxy manager
+        SystemProxyManager& system_proxy_manager = SystemProxyManager::GetInstance();
 
-            // Get velocity component
-            VelocityComponent* velocity = GetComponent<VelocityComponent>();
-            assert(velocity != nullptr && "VelocityComponent should not be null");
+        // Create task list
+        tecs::System::TaskList task_list;
 
-            // Display status
-            std::cout << "Entity Status:\n";
-            std::cout << "Position: (" << transform->GetX() << ", " << transform->GetY() << ")\n";
-            std::cout << "Velocity: (" << velocity->GetVX() << ", " << velocity->GetVY() << ")\n";
-        }
-        else if (command == "setpos")
-        {
-            float x, y;
-            std::cin >> x >> y;
+        // Modify context data task
+        tecs::test::ModifyContextData(task_list);
 
-            // Get transform component
-            TransformComponent* transform = GetComponent<TransformComponent>();
-            assert(transform != nullptr && "TransformComponent should not be null");
+        // Get system proxy for sample system
+        std::unique_ptr<tecs::SystemProxy> sample_proxy =
+            system_proxy_manager.GetSystemProxy<tecs::test::SampleSystem>();
 
-            // Set new position
-            transform->SetX(x);
-            transform->SetY(y);
-
-            std::cout << "Position set to (" << x << ", " << y << ")\n";
-        }
-        else if (command == "setvel")
-        {
-            float vx, vy;
-            std::cin >> vx >> vy;
-
-            // Get velocity component
-            VelocityComponent* velocity = GetComponent<VelocityComponent>();
-            assert(velocity != nullptr && "VelocityComponent should not be null");
-
-            // Set new velocity
-            velocity->SetVX(vx);
-            velocity->SetVY(vy);
-
-            std::cout << "Velocity set to (" << vx << ", " << vy << ")\n";
-        }
-        else if (command == "destroy")
-        {
-            std::cout << "Destroying entity object...\n";
-            Destroy();
-        }
-        else if (command == "exit")
-        {
-            std::cout << "Exiting...\n";
-            return false; // Stop updating
-        }
-        else
-        {
-            std::cout << "Unknown command. Type 'help' for options.\n";
-        }
-
-        return true; // Continue updating
+        // Submit task list to the system via proxy
+        sample_proxy->SumbitTaskList(std::move(task_list));
     }
 
-    void OnDestroy() override
-    {
-        std::cout << "SampleObject destroyed." << std::endl;
-    }
+
+
+private:
+    // Active state of the behavior
+    bool is_active_ = true;
+
+    // Name of the behavior
+    std::string behavior_name_;
+
 };
 
 } // namespace tecs::test
@@ -468,7 +527,7 @@ TEST(tecs, ecs_world)
     EXPECT_FALSE(world.CheckEntityValidity(entity));
 }
 
-TEST(tecs, ecs_world_template)
+TEST(tecs, ecs_world_template_version)
 {
     // Verify const values
     constexpr float kPosX = 100.0f;
@@ -518,98 +577,199 @@ TEST(tecs, ecs_world_template)
     EXPECT_FALSE(world.CheckEntityValidity(entity));
 }
 
-TEST(tecs, system)
+TEST(tecs, entity_handle)
 {
+    // Verify const values
+    constexpr float kPosX = 100.0f;
+    constexpr float kPosY = 200.0f;
+
     // Create a world instance
     tecs::World world;
 
     // Create an entity
     tecs::Entity entity = world.CreateEntity();
 
-    // Create and add transform component
+    // check entity is valid
+    EXPECT_TRUE(world.CheckEntityValidity(entity));
+
+    // Create an entity handle for the created entity
+    tecs::EntityHandle entity_handle(world, entity);
+
+    // Verify the entity handle is valid
+    EXPECT_TRUE(entity_handle.IsValid());
+
+    // Create transform component config
     std::unique_ptr<tecs::test::TransformComponent::TransformConfig> transform_config 
         = std::make_unique<tecs::test::TransformComponent::TransformConfig>();
-    transform_config->x = 0.0f;
-    transform_config->y = 0.0f;
-    world.AddComponent<tecs::test::TransformComponent>(entity, std::move(transform_config));
+    transform_config->x = kPosX;
+    transform_config->y = kPosY;
 
-    // Create and add velocity component
-    std::unique_ptr<tecs::test::VelocityComponent::VelocityConfig> velocity_config 
-        = std::make_unique<tecs::test::VelocityComponent::VelocityConfig>();
-    velocity_config->vx = 1.0f;
-    velocity_config->vy = 1.0f;
-    world.AddComponent<tecs::test::VelocityComponent>(entity, std::move(velocity_config));
+    // Add transform component to entity using the entity handle
+    bool add_transform_result = entity_handle.AddComponent<tecs::test::TransformComponent>(std::move(transform_config));
+    EXPECT_TRUE(add_transform_result);
 
-    // Commit the entity to the world
-    // If not committed, the system should not process it
-    world.CommitEntity(entity);
+    // Check entity has the transform component using the entity handle
+    bool has_transform = entity_handle.HasComponent<tecs::test::TransformComponent>();
+    EXPECT_TRUE(has_transform);
 
-    // Create a system that processes all components
-    tecs::System system;
+    // Get the transform component from the world using the entity handle
+    tecs::test::TransformComponent* transform_component = entity_handle.GetComponent<tecs::test::TransformComponent>();
+    EXPECT_NE(transform_component, nullptr);
 
-    // Create entity object graph
-    tecs::EntityObjectGraph entity_object_graph;
+    // Verify the position values
+    EXPECT_FLOAT_EQ(transform_component->GetX(), kPosX);
+    EXPECT_FLOAT_EQ(transform_component->GetY(), kPosY);
 
-    // Update the system
-    system.Update(world, entity_object_graph);
+    // Remove the transform component using the entity handle
+    bool remove_transform_result = entity_handle.RemoveComponent<tecs::test::TransformComponent>();
+    EXPECT_TRUE(remove_transform_result);
+
+    // Check entity no longer has the transform component using the entity handle
+    bool has_transform_after_removal = entity_handle.HasComponent<tecs::test::TransformComponent>();
+    EXPECT_FALSE(has_transform_after_removal);
+
+    // Destroy the entity using the entity handle
+    bool destroy_result = entity_handle.Destroy();
+    EXPECT_TRUE(destroy_result);
+
+    // Verify the entity is no longer valid
+    EXPECT_FALSE(world.CheckEntityValidity(entity));
 }
 
-TEST(tecs, system_with_not_committed_entity)
+TEST(tecs, use_system)
 {
-    // Create a world instance
-    tecs::World world;
+    // Get cpu core count
+    uint32_t num_cores = std::thread::hardware_concurrency();
+    EXPECT_NE(num_cores, 0);
 
-    // Create an entity
-    tecs::Entity entity = world.CreateEntity();
+    // Create job scheduler
+    tecs::JobScheduler job_scheduler(num_cores);
 
-    // Create and add transform component
-    std::unique_ptr<tecs::test::TransformComponent::TransformConfig> transform_config 
-        = std::make_unique<tecs::test::TransformComponent::TransformConfig>();
-    transform_config->x = 0.0f;
-    transform_config->y = 0.0f;
-    world.AddComponent<tecs::test::TransformComponent>(entity, std::move(transform_config));
+    // Create sample system
+    tecs::test::SampleSystem sample_system(job_scheduler);
 
-    // Create and add velocity component
-    std::unique_ptr<tecs::test::VelocityComponent::VelocityConfig> velocity_config 
-        = std::make_unique<tecs::test::VelocityComponent::VelocityConfig>();
-    velocity_config->vx = 1.0f;
-    velocity_config->vy = 1.0f;
-    world.AddComponent<tecs::test::VelocityComponent>(entity, std::move(velocity_config));
+    // Create singleton system proxy manager
+    tecs::SystemProxyManager system_proxy_manager;
 
-    // Create a system that processes all components
-    tecs::System system;
-
-    // Create entity object graph
-    tecs::EntityObjectGraph entity_object_graph;
-
-    // Update the system
-    system.Update(world, entity_object_graph);
-}
-
-TEST(tecs, entity_object)
-{
-    // Create a world instance
-    tecs::World world;
-
-    // Create entity object graph
-    tecs::EntityObjectGraph entity_object_graph;
-
-    // Create singleton entity object spawner
-    tecs::EntityObjectSpawner spawner(world, entity_object_graph);
-
-    // Create system
-    tecs::System system;
-
-    // Spawn a sample entity object
-    tecs::EntityHandle entity_handle = spawner.SpawnEntityObject<tecs::test::SampleObject>();
-
-    // Commit the entity to the world
-    entity_handle.Commit();
-
-    bool loop = true;
-    while (loop)
     {
-        // Update the entity object graph
-        loop = system.Update(world, entity_object_graph);
+        // Create system proxy for sample system
+        tecs::SystemProxy sample_proxy(sample_system);
+
+        // Register sample system proxy
+        system_proxy_manager.RegisterSystemProxy<tecs::test::SampleSystem>(
+            std::make_unique<tecs::SystemProxy>(sample_system));
     }
+
+    {
+        // Create task list
+        tecs::System::TaskList task_list;
+
+        // Modify context data task
+        tecs::test::ModifyContextData(task_list);
+
+        // Get system proxy for sample system
+        std::unique_ptr<tecs::SystemProxy> sample_proxy =
+            system_proxy_manager.GetSystemProxy<tecs::test::SampleSystem>();
+
+        // Submit task list to the system via proxy
+        sample_proxy->SumbitTaskList(std::move(task_list));
+    }
+
+    // Run system update phases
+    ASSERT_TRUE(sample_system.PreUpdate());
+    ASSERT_TRUE(sample_system.Update());
+    ASSERT_TRUE(sample_system.PostUpdate());
+
+    {
+        // Get system proxy for sample system
+        std::unique_ptr<tecs::SystemProxy> sample_proxy =
+            system_proxy_manager.GetSystemProxy<tecs::test::SampleSystem>();
+
+        // Verify that the context data was modified by the task
+        const tecs::test::SampleContext* context = sample_proxy->GetContext<tecs::test::SampleContext>();
+        EXPECT_EQ(context->sample_data_, tecs::test::kModifiedValue);
+    }
+}
+
+TEST(tecs, use_ecs)
+{
+    // Get cpu core count
+    uint32_t num_cores = std::thread::hardware_concurrency();
+    EXPECT_NE(num_cores, 0);
+
+    // Create job scheduler
+    tecs::JobScheduler job_scheduler(num_cores);
+
+    // Create sample system
+    tecs::test::SampleSystem sample_system(job_scheduler);
+
+    // Create singleton system proxy manager
+    tecs::SystemProxyManager system_proxy_manager;
+
+    {
+        // Create system proxy for sample system
+        tecs::SystemProxy sample_proxy(sample_system);
+
+        // Register sample system proxy
+        system_proxy_manager.RegisterSystemProxy<tecs::test::SampleSystem>(
+            std::make_unique<tecs::SystemProxy>(sample_system));
+    }
+
+    // Create a world instance
+    tecs::World world;
+
+    // Create an entity handle
+    std::unique_ptr<tecs::EntityHandle> entity_handle = nullptr;
+    {
+        // Create an entity
+        tecs::Entity entity = world.CreateEntity();
+        EXPECT_TRUE(world.CheckEntityValidity(entity));
+
+        // Create an entity handle for the created entity
+        entity_handle = std::make_unique<tecs::EntityHandle>(world, entity);
+    }
+
+    // Create behavior component config
+    std::unique_ptr<tecs::test::BehaviorComponent::BehaviorConfig> behavior_config 
+        = std::make_unique<tecs::test::BehaviorComponent::BehaviorConfig>();
+    behavior_config->is_active = true;
+    behavior_config->behavior_name = "TestBehavior";
+
+    // Add behavior component to entity using the entity handle
+    bool add_behavior_result = entity_handle->AddComponent<tecs::test::BehaviorComponent>(std::move(behavior_config));
+    EXPECT_TRUE(add_behavior_result);
+
+    // Commit the entity using entity handle
+    bool commit_result = entity_handle->Commit();
+    EXPECT_TRUE(commit_result);
+
+    // Iterate through entities which have the BehaviorComponent
+    for (const auto& entity : world.View<tecs::test::BehaviorComponent>())
+    {
+        // Create entity handle for the entity
+        tecs::EntityHandle entity_handle_for(world, entity);
+
+        // Get the behavior component from the world using the entity handle
+        tecs::test::BehaviorComponent* behavior_component = entity_handle_for.GetComponent<tecs::test::BehaviorComponent>();
+        EXPECT_NE(behavior_component, nullptr);
+
+        // Update the behavior component
+        behavior_component->Update(entity_handle_for, 0.016f); // Assuming 60
+    }
+
+    // Run system update phases
+    ASSERT_TRUE(sample_system.PreUpdate());
+    ASSERT_TRUE(sample_system.Update());
+    ASSERT_TRUE(sample_system.PostUpdate());
+
+    {
+        // Get system proxy for sample system
+        std::unique_ptr<tecs::SystemProxy> sample_proxy =
+            system_proxy_manager.GetSystemProxy<tecs::test::SampleSystem>();
+
+        // Verify that the context data was modified by the task
+        const tecs::test::SampleContext* context = sample_proxy->GetContext<tecs::test::SampleContext>();
+        EXPECT_EQ(context->sample_data_, tecs::test::kModifiedValue);
+    }
+    
 }
