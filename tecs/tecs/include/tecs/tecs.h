@@ -1,6 +1,7 @@
 #pragma once
 
 // TECS
+#include "tecs/id.h"
 #include "tecs/job.h"
 #include "tecs/ecs.h"
 #include "tecs/reflection.h"

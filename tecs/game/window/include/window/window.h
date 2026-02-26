@@ -21,8 +21,12 @@ public:
     virtual ~Window() = default;
 };
     
+/**
+ * @brief
+ * Context for the WindowSystem
+ */
 class WindowContext :
-    public Service::Context
+    public System::Context
 {
 public:
     WindowContext() = default;
@@ -33,10 +37,35 @@ private:
 
 };
 
-class WindowService :
-    public Service
+/**
+ * @brief
+ * System for managing the window and its context
+ */
+class WindowSystem :
+    public System
 {
 public:
+    /**
+     * @brief
+     * Construct a new Window System object
+     * It create window context and initializes the system
+     * 
+     * @param job_scheduler 
+     * Reference to the JobScheduler
+     */
+    WindowSystem(JobScheduler& job_scheduler);
+
+    /**
+     * @brief
+     * Destroy the Window System object.
+     */
+    ~WindowSystem() override;
+
+    // --- System interface implementation ---
+
+    bool PreUpdate() override;
+    bool Update() override;
+    bool PostUpdate() override;
 
 };
 

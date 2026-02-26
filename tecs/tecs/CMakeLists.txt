@@ -8,6 +8,7 @@ add_library(tecs STATIC
     # ---- Headers ----
 
     include/tecs/tecs.h
+    include/tecs/id.h
     include/tecs/job.h
     include/tecs/ecs.h
     include/tecs/class_template.h
@@ -16,6 +17,7 @@ add_library(tecs STATIC
     # ---- Sources ----
 
     src/tecs.cpp
+    src/id.cpp
     src/job.cpp
     src/ecs.cpp
     src/reflection.cpp
@@ -63,6 +65,7 @@ if (BUILD_TESTING)
     FetchContent_MakeAvailable(googletest)
 
     add_executable(tecs_tests
+        tests/id.cpp
         tests/job.cpp
         tests/ecs.cpp
         tests/reflection.cpp
