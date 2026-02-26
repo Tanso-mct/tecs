@@ -1,41 +1,10 @@
 ﻿#pragma once
 
-// STL
-#include <cstdint>
-#include <string>
-
 // TECS
 #include "tecs/tecs.h"
 
-namespace tecs::game::window
+namespace tecs::game::platform
 {
-
-/**
- * @brief
- * Interface for the Window
- * You can implement this interface for different platforms (e.g., Win32, X11, etc.)
- */
-class Window
-{
-public:
-    virtual ~Window() = default;
-};
-    
-/**
- * @brief
- * Context for the WindowSystem
- */
-class WindowContext :
-    public System::Context
-{
-public:
-    WindowContext() = default;
-    ~WindowContext() override = default;
-
-private:
-    
-
-};
 
 /**
  * @brief
@@ -66,7 +35,6 @@ public:
     bool PreUpdate() override;
     bool Update() override;
     bool PostUpdate() override;
-
 };
 
-} // tecs::game::window
+} // namespace tecs::game::platform

@@ -1,5 +1,5 @@
-﻿#include "pch.h"
-#include "window/window_win32.h"
+#include "pch.h"
+#include "platform/window_win32.h"
 
 namespace tecs::game::window
 {
