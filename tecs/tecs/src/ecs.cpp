@@ -6,82 +6,7 @@ namespace tecs
 
 // Initialize static member
 uint32_t Component::next_id_ = 0;
-
-Entity::Entity()
-{
-    // Initialize as invalid entity
-    bits_ = MakeBits(0, 0, false);
-}
-
-Entity::Entity(uint32_t id, uint32_t gen)
-{
-    // Initialize as valid entity with given id and generation
-    bits_ = MakeBits(id, gen, true);
-}
-
-uint32_t Entity::GetID() const
-{
-    return static_cast<std::uint32_t>((bits_ >> ID_SHIFT) & ID_MASK);
-}
-
-uint32_t Entity::GetGen() const
-{
-    return static_cast<std::uint32_t>((bits_ >> GEN_SHIFT) & GEN_MASK);
-}
-
-bool Entity::IsValid() const
-{
-    return (bits_ & VALID_MASK) != 0;
-}
-
-uint64_t Entity::GetBits() const
-{
-    return bits_;
-}
-
-bool Entity::operator==(const Entity& other) const
-{
-    return bits_ == other.bits_;
-}
-
-bool Entity::operator!=(const Entity& other) const
-{
-    return bits_ != other.bits_;
-}
-
-bool Entity::operator<(const Entity& other) const
-{
-    // Get Gens for comparison
-    uint32_t this_gen = GetGen();
-    uint32_t other_gen = other.GetGen();
-
-    // Compare generations first
-    if (this_gen != other_gen)
-        return this_gen < other_gen;
-
-    // Get IDs for comparison
-    uint32_t this_id = GetID();
-    uint32_t other_id = other.GetID();
-
-    // Compare IDs if generations are equal
-    return this_id < other_id;
-}
-
-uint64_t Entity::MakeBits(size_t id, size_t gen, bool valid)
-{
-    uint64_t bits = 0;
-
-    // Encode validity as 1 bit
-    uint64_t v = valid ? uint64_t{1} : uint64_t{0};
-
-    // Pack the fields into bits
-    bits |= (v & uint64_t{1}) << VALID_SHIFT;
-    bits |= (uint64_t(id) & ID_MASK) << ID_SHIFT;
-    bits |= (uint64_t(gen) & GEN_MASK) << GEN_SHIFT;
-
-    // Return the encoded bits
-    return bits;
-}
+uint32_t System::next_id_ = 0;
 
 Component::Config::Config(std::unique_ptr<Reflection> reflection)
     : reflection_(std::move(reflection))
@@ -264,11 +189,6 @@ std::vector<uint32_t> World::GetHavingComponents(Entity entity) const
     return component_ids; // Return the list of component IDs
 }
 
-EntityHandle World::CreateEntityHandle(Entity entity)
-{
-    return EntityHandle(*this, entity);
-}
-
 const std::set<Entity>& World::View(uint32_t component_id) const
 {
     static const std::set<Entity> empty_set;
@@ -341,154 +261,137 @@ bool EntityHandle::Destroy()
     return world_.DestroyEntity(entity_);
 }
 
-EntityObject::EntityObject(EntityHandle entity_handle) :
-    entity_handle_(entity_handle)
+std::unique_ptr<EntityHandle> EntityHandle::Clone() const
 {
+    return std::make_unique<EntityHandle>(world_, entity_);
 }
 
-bool EntityObject::IsValid() const
+System::Task::Task(Func func) : 
+    func_(func)
 {
-    return entity_handle_.IsValid();
+    assert(func_ && "Task function cannot be nullptr");
+
+    // Create default Info if none provided
+    info_ = std::make_unique<Info>();
 }
 
-void EntityObject::Destroy()
+System::Task::Task(Func func, std::unique_ptr<Info> info) :
+    func_(func), 
+    info_(std::move(info))
 {
-    // Call OnDestroy hook
-    OnDestroy();
-
-    // Destroy the associated entity
-    entity_handle_.Destroy();
+    assert(func_ && "Task function cannot be nullptr");
+    assert(info_ && "Task Info cannot be nullptr");
 }
 
-void EntityObjectGraph::AddEntityObject(std::unique_ptr<EntityObject> entity_object)
+bool System::Task::Execute(Context& context, JobScheduler& job_scheduler)
 {
-    entity_objects_.push_back(std::move(entity_object));
+    return func_(context, job_scheduler);
 }
 
-bool EntityObjectGraph::Compile()
+const System::Task::Info& System::Task::GetInfo() const
 {
-    // Clear previous update order
-    update_order_.clear();
+    assert(info_ && "Task Info is nullptr");
+    return *info_;
+}
 
-    // Prepare a list to hold indices of entity objects going to be removed
-    std::vector<size_t> going_to_remove_indices;
+System::System(JobScheduler& job_scheduler, std::unique_ptr<Context> context) :
+    job_scheduler_(job_scheduler), 
+    context_(std::move(context))
+{
+    assert(context_ && "System Context cannot be nullptr");
+}
 
-    // Iterate over entity objects to collect those going to be removed
-    for (size_t i = 0; i < entity_objects_.size(); ++i)
+void System::SumbitTaskList(TaskList tasks)
+{
+    // Enqueue the provided task list
+    task_list_queue_.Enqueue(std::move(tasks));
+}
+
+const System::Context& System::GetContext() const
+{
+    assert(context_ && "System Context is nullptr");
+    return *context_;
+}
+
+void System::TaskListQueue::Enqueue(TaskList tasks)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    queue_.emplace(std::move(tasks));
+}
+
+bool System::TaskListQueue::Dequeue(TaskList& tasks)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (queue_.empty())
+        return false; // If the queue is empty, return false
+
+    // Move the front task list to the provided reference
+    tasks = std::move(queue_.front());
+    queue_.pop();
+
+    return true; // Successfully dequeued a task list
+}
+
+std::vector<System::TaskList> System::TaskListQueue::Dequeue()
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<TaskList> all_tasks;
+
+    while (!queue_.empty())
     {
-        // Get the entity object
-        EntityObject& entity_object = *entity_objects_[i];
-
-        // Check if the entity object is going to be removed
-        if (!entity_object.IsValid())
-            going_to_remove_indices.push_back(i); // Mark for destruction
+        // Move each task list to the vector
+        all_tasks.emplace_back(std::move(queue_.front()));
+        queue_.pop();
     }
 
-    // Remove entity objects marked for destruction
-    if (!going_to_remove_indices.empty())
-    {
-        for (size_t i = going_to_remove_indices.size(); i > 0; --i)
-        {
-            // Get the index of the entity object to remove
-			size_t index = going_to_remove_indices[i - 1];
-
-            // Erase the entity object from the list
-            entity_objects_.erase(entity_objects_.begin() + index);
-        }
-    }
-
-    // Iterate over entity objects to determine update order
-    for (size_t i = 0; i < entity_objects_.size(); ++i)
-        update_order_.push_back(i); // Simple sequential order for now
-
-    if (update_order_.empty())
-        return false; // Compilation failed (no entity objects)
-
-    return true; // Compilation successful
+    return all_tasks; // Return all dequeued task lists
 }
 
-bool EntityObjectGraph::Update(float delta_time)
-{
-    // Update entity objects in the determined order
-    for (const auto& index : update_order_)
-    {
-        EntityObject* entity_object = entity_objects_[index].get();
-        assert(entity_object != nullptr && "EntityObject should not be null");
-
-        if (!entity_object->IsStarted())
-        {
-            // Call OnStart
-            if (!entity_object->OnStart())
-                return false; // Stop update if OnStart fails
-
-            // Mark as started
-            entity_object->MarkStarted();
-        }
-        else
-        {
-            // Update the entity object
-            if (!entity_object->OnUpdate(delta_time))
-                return false; // Stop update if any entity object update fails
-        }
-    }
-
-    return true; // Update successful
-}
-
-EntityObjectSpawner::EntityObjectSpawner(World& world, EntityObjectGraph& entity_object_graph) :
-    world_(world),
-    entity_object_graph_(entity_object_graph)
+SystemProxy::SystemProxy(System& system) : 
+    system_(system)
 {
 }
 
-bool System::Update(World& world, EntityObjectGraph& entity_object_graph)
+void SystemProxy::SumbitTaskList(System::TaskList tasks)
 {
-    if (is_first_update_)
+    system_.SumbitTaskList(std::move(tasks));
+}
+
+std::unique_ptr<SystemProxy> SystemProxy::Clone() const
+{
+    return std::make_unique<SystemProxy>(system_);
+}
+
+void SystemProxyManager::RegisterSystemProxy(uint32_t system_id, std::unique_ptr<SystemProxy> proxy)
+{
+    // Lock the mutex for thread-safe access
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    auto it = system_proxies_.find(system_id);
+    if (it != system_proxies_.end())
     {
-        // Initialize last update time on first update
-        last_update_time_ = std::chrono::high_resolution_clock::now();
-        is_first_update_ = false;
+        // If a proxy for this system ID already exists, replace it
+        it->second = std::move(proxy);
     }
-
-    // Calculate delta time since last update
-    std::chrono::high_resolution_clock::time_point current_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<float> elapsed = current_time - last_update_time_;
-    float delta_time = elapsed.count();
-
-    // Update last update time
-    last_update_time_ = current_time;
-
-    // Loop control flag
-    bool loop_continue = true;
-
-    // Compile the entity object graph
-    loop_continue = entity_object_graph.Compile();
-    if (!loop_continue)
-        return false; // Stop update if compilation fails
-
-    // Update the entity object graph
-    loop_continue = entity_object_graph.Update(delta_time);
-    if (!loop_continue)
-        return false; // Stop update if update stops
-
-    // Iterate over all component IDs
-    for (uint32_t component_id = 0; component_id < Component::GetMaxID(); component_id++)
+    else
     {
-        // Iterate over all entities having the component
-        for (Entity entity : world.View(component_id))
-        {
-            // Get the component
-            Component* component = world.GetComponent(entity, component_id);
-            
-            // Create entity handle
-            EntityHandle entity_handle = world.CreateEntityHandle(entity);
-
-            // Update the component
-            component->Update(entity_handle, delta_time);
-        }
+        // Otherwise, insert the new proxy
+        system_proxies_.emplace(system_id, std::move(proxy));
     }
+}
 
-    return true; // Update successful
+std::unique_ptr<SystemProxy> SystemProxyManager::GetSystemProxy(uint32_t system_id)
+{
+    // Lock the mutex for thread-safe access
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    // Find the SystemProxy for the specified system ID
+    auto it = system_proxies_.find(system_id);
+    assert(it != system_proxies_.end() && "SystemProxy for the specified system ID not found");
+
+    // Return a clone of the SystemProxy
+    assert(it->second && "SystemProxy for the specified system ID is nullptr");
+    return it->second->Clone(); // Return a clone of the SystemProxy
 }
 
 } // namespace tecs

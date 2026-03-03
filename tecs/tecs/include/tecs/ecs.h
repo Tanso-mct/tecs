@@ -11,7 +11,9 @@
 #include <initguid.h>
 
 // TECS
+#include "tecs/id.h"
 #include "tecs/reflection.h"
+#include "tecs/job.h"
 #include "tecs/class_template.h"
 
 namespace tecs
@@ -20,171 +22,8 @@ namespace tecs
 // Forward declarations
 class EntityHandle;
 
-/**
- * @brief
- * Class representing an entity in the ECS (Entity-Component-System) architecture
- * Entities are identified by a unique ID and a generation number
- */
-class Entity
-{
-public:
-    /**
-     * @brief
-     * Construct a new Entity object
-     * If no parameters are provided, the entity is considered invalid
-     */
-    Entity();
-
-    /**
-     * @brief
-     * Construct a new Entity object with the given ID and generation
-     * 
-     * @param id 
-     * The unique identifier for the entity
-     * 
-     * @param generation 
-     * The generation number for the entity
-     */
-    Entity(uint32_t id, uint32_t gen);
-
-    /**
-     * @brief
-     * Destroy the Entity object. No special cleanup is required.
-     */
-    ~Entity() = default;
-
-    /**
-     * @brief
-     * Get the ID of the entity
-     */
-    uint32_t GetID() const;
-
-    /**
-     * @brief
-     * Get the generation of the entity
-     */
-    uint32_t GetGen() const;
-
-    /**
-     * @brief
-     * Check if the entity is valid
-     * 
-     * @return true 
-     * If the entity is valid
-     * 
-     * @return false 
-     * If the entity is invalid
-     */
-    bool IsValid() const;
-
-    /**
-     * @brief
-     * Get the encoded bits representing the entity
-     * 
-     * @return uint64_t 
-     * The encoded bits of the entity
-     */
-    uint64_t GetBits() const;
-
-    /**
-     * @brief
-     * Equality operator for Entity
-     * 
-     * @param other 
-     * The other entity to compare with
-     * 
-     * @return true 
-     * If both entities are equal
-     * 
-     * @return false 
-     * If both entities are not equal
-     */
-    bool operator==(const Entity& other) const;
-
-    /**
-     * @brief
-     * Inequality operator for Entity
-     * 
-     * @param other 
-     * The other entity to compare with
-     * 
-     * @return true 
-     * If both entities are not equal
-     * 
-     * @return false 
-     * If both entities are equal
-     */
-    bool operator!=(const Entity& other) const;
-
-    /**
-     * @brief
-     * Less-than operator for Entity
-     * 
-     * @param other 
-     * The other entity to compare with
-     * 
-     * @return true 
-     * If this entity is less than the other entity
-     * 
-     * @return false 
-     * If this entity is not less than the other entity
-     */
-    bool operator<(const Entity& other) const;
-
-private:
-    // id, generation, validity bit
-    uint64_t bits_;
-
-    // Bit shifts for encoding and decoding the entity information
-    static constexpr unsigned VALID_SHIFT = 0;
-    static constexpr unsigned ID_SHIFT = 1;
-    static constexpr unsigned GEN_SHIFT   = 32;
-
-    // Masks for extracting fields
-    static constexpr uint64_t VALID_MASK = uint64_t{1} << VALID_SHIFT;
-    static constexpr uint64_t ID_MASK = (uint64_t{1} << 31) - 1; // 31bit
-    static constexpr uint64_t GEN_MASK = (uint64_t{1} << 32) - 1; // 32bit
-
-    /**
-     * @brief
-     * Create the encoded bits for the entity
-     * 
-     * @param id 
-     * The unique identifier for the entity
-     * 
-     * @param gen 
-     * The generation number for the entity
-     * 
-     * @param valid 
-     * The validity of the entity
-     * 
-     * @return uint64_t 
-     * The encoded bits representing the entity
-     */
-    uint64_t MakeBits(size_t id, size_t gen, bool valid);
-};
-
-} // namespace tecs
-
-namespace std
-{
-    /**
-     * @brief
-     * Specialization of std::hash for tecs::Entity
-     * Allows using Entity as a key in unordered containers
-     */
-    template <>
-    struct hash<tecs::Entity>
-    {
-        size_t operator()(const tecs::Entity& entity) const noexcept
-        {
-            return static_cast<size_t>(entity.GetBits());
-        }
-    };
-} // namespace std
-
-namespace tecs
-{
+// Define Entity as an alias for ID
+using Entity = ID;
 
 /**
  * @brief
@@ -624,18 +463,6 @@ public:
 
     /**
      * @brief
-     * Create an EntityHandle for the given entity.
-     * 
-     * @param entity
-     * The entity for which the handle will be created
-     * 
-     * @return EntityHandle
-     * The created EntityHandle
-     */
-    EntityHandle CreateEntityHandle(Entity entity);
-
-    /**
-     * @brief
      * Get a view of all entities that have a specific component.
      * 
      * @param component_id
@@ -703,12 +530,14 @@ public:
     /**
      * @brief
      * Construct a new EntityHandle object for the given entity in the world.
+
      */
     EntityHandle(World& world, Entity entity);
 
     /**
      * @brief
      * Destroy the EntityHandle object. No special cleanup is required.
+
      */
     ~EntityHandle() = default;
 
@@ -733,6 +562,7 @@ public:
      * 
      * @return false 
      * If the entity commit failed
+
      */
     bool Commit();
 
@@ -875,6 +705,15 @@ public:
      */
     bool Destroy();
 
+    /**
+     * @brief
+     * Clone this EntityHandle, creating a new handle that references the same entity in the world
+     * 
+     * @return std::unique_ptr<EntityHandle>
+     * Unique pointer to the cloned EntityHandle
+     */
+    std::unique_ptr<EntityHandle> Clone() const;
+
 private:
     // Referenced the world
     World& world_;
@@ -883,350 +722,452 @@ private:
     Entity entity_;
 };
 
-/**
- * @brief
- * Base class for all entity objects in the ECS architecture
- * Entity objects encapsulate behavior and data for specific entities
- */
-class EntityObject
-{
-public:
-    /**
-     * @brief
-     * Construct a new EntityObject with the given EntityHandle
-     */
-    EntityObject(EntityHandle entity_handle);
-
-    /**
-     * @brief
-     * Destroy the EntityObject. No special cleanup is required.
-     */
-    virtual ~EntityObject() = default;
-
-    /**
-     * @brief
-     * Get the EntityHandle associated with this entity object is valid.
-     * 
-     * @return true
-     * If the entity object is valid
-     * 
-     * @return false
-     * If the entity object is invalid
-     */
-    bool IsValid() const;
-
-    /**
-     * @brief
-     * Wrap the templated AddComponent method of the EntityHandle class.
-     */
-    template <typename ComponentType>
-    bool AddComponent(std::unique_ptr<Component::Config> config)
-    {
-        return entity_handle_.AddComponent<ComponentType>(std::move(config));
-    }
-
-    /**
-     * @brief
-     * Wrap the templated RemoveComponent method of the EntityHandle class.
-     * 
-     * @return true
-     * If the component was successfully removed
-     * 
-     * @return false
-     * If the component removal failed
-     */
-    template <typename ComponentType>
-    bool RemoveComponent()
-    {
-        return entity_handle_.RemoveComponent<ComponentType>();
-    }
-
-    /**
-     * @brief
-     * Wrap the templated HasComponent method of the EntityHandle class.
-     * 
-     * @return true
-     * If the entity has the component
-     * 
-     * @return false
-     * If the entity does not have the component
-     */
-    template <typename ComponentType>
-    bool HasComponent() const
-    {
-        return entity_handle_.HasComponent<ComponentType>();
-    }
-
-    /**
-     * @brief
-     * Wrap the templated GetComponent method of the EntityHandle class.
-     * 
-     * @return ComponentType*
-     * Pointer to the component with the specified type T if found, nullptr otherwise
-     */
-    template <typename ComponentType>
-    ComponentType* GetComponent()
-    {
-        return entity_handle_.GetComponent<ComponentType>();
-    }
-
-    /**
-     * @brief
-     * Wrap the GetHavingComponents method of the EntityHandle class.
-     * 
-     * @return std::vector<uint32_t>
-     * Vector of component IDs that the entity has
-     */
-    std::vector<uint32_t> GetHavingComponents() const
-    {
-        return entity_handle_.GetHavingComponents();
-    }
-
-    /**
-     * @brief
-     * Destroy the entity object and mark it for removal
-     */
-    void Destroy();
-
-    /**
-     * @brief
-     * Get the entity object is started
-     * 
-     * @return true
-     * If the entity object is started
-     * 
-     * @return false
-     * If the entity object is not started
-     */
-    bool IsStarted() const { return is_started_; }
-
-    /**
-     * @brief
-     * Mark the entity object as started
-     */
-    void MarkStarted() { is_started_ = true; }
-
-    /**
-     * @brief
-     * Called when the entity object is created.
-     */
-    virtual void OnCreate()
-    {
-    }
-
-    /**
-     * @brief
-     * Called when the entity object is started.
-     * 
-     * @return true
-     * If the start was successful
-     * 
-     * @return false
-     * If the start failed
-     */
-    virtual bool OnStart()
-    {
-        return true;
-    }
-
-    /**
-     * @brief
-     * Called to update the entity object with the given delta time.
-     * 
-     * @param delta_time
-     * Time elapsed since the last update
-     * 
-     * @return true
-     * If the update will continue
-     * 
-     * @return false
-     * If the update should stop
-     */
-    virtual bool OnUpdate(float delta_time)
-    {
-        return true;
-    }
-
-    /**
-     * @brief
-     * Called when the entity object is destroyed.
-     */
-    virtual void OnDestroy()
-    {
-    }
-
-private:
-    // Handle to the entity
-    EntityHandle entity_handle_;
-
-    // Flag indicating whether the entity object has been started
-    bool is_started_ = false;
-};
 
 /**
- * @brief
- * Class representing a graph of entity objects in the ECS architecture
- * The graph manages multiple entity objects and their dependencies
- */
-class EntityObjectGraph
-{
-public:
-    /**
-     * @brief
-     * Construct a new EntityObjectGraph. No special initialization is required.
-     */
-    EntityObjectGraph() = default;
-
-    /**
-     * @brief
-     * Destroy the EntityObjectGraph. No special cleanup is required.
-     */
-    ~EntityObjectGraph() = default;
-
-    /**
-     * @brief
-     * Add an entity object to the graph.
-     * 
-     * @param entity_object
-     * Unique pointer to the entity object to be added
-     */
-    void AddEntityObject(std::unique_ptr<EntityObject> entity_object);
-
-    /**
-     * @brief
-     * Compile the entity object graph to determine update order based on dependencies.
-     * 
-     * @return true
-     * If the compilation was successful
-     * 
-     * @return false
-     * If the compilation failed (e.g., due to circular dependencies)
-     */
-    bool Compile();
-
-    /**
-     * @brief
-     * Update the entity objects in the graph with the given delta time.
-     * 
-     * @param delta_time
-     * Time elapsed since the last update
-     * 
-     * @return true
-     * If the update will continue
-     * 
-     * @return false
-     * If the update should stop
-     */
-    bool Update(float delta_time);
-
-private:
-    // List of entity objects in the graph
-    std::vector<std::unique_ptr<EntityObject>> entity_objects_;
-
-    // Update order of entity objects based on dependencies
-    std::vector<size_t> update_order_;
-};
-
-class EntityObjectSpawner :
-    public Singleton<EntityObjectSpawner>
-{
-public:
-    /**
-     * @brief
-     * Construct a new EntityObjectSpawner with the given entity object graph and entity factory.
-     * 
-     * @param entity_object_graph
-     * Reference to the entity object graph
-     * 
-     * @param entity_factory
-     * Reference to the entity factory
-     */
-    EntityObjectSpawner(World& world, EntityObjectGraph& entity_object_graph);
-
-    /**
-     * @brief
-     * Destroy the EntityObjectSpawner. No special cleanup is required.
-     */
-    ~EntityObjectSpawner() = default;
-
-    template <typename EntityObjectType, typename... Args>
-    EntityHandle SpawnEntityObject(Args&&... args)
-    {
-        // Create entity
-        Entity entity = world_.CreateEntity();
-
-        // Create entity handle
-        EntityHandle entity_handle = world_.CreateEntityHandle(entity);
-
-        // Create entity object
-        std::unique_ptr<EntityObjectType> entity_object 
-            = std::make_unique<EntityObjectType>(entity_handle, std::forward<Args>(args)...);
-
-        // Call OnCreate
-        entity_object->OnCreate();
-
-        // Add entity object to graph
-        entity_object_graph_.AddEntityObject(std::move(entity_object));
-
-		return entity_handle;
-    }
-
-private:
-    // Reference to the entity object graph
-    EntityObjectGraph& entity_object_graph_;
-
-    // Reference to the world
-    World& world_;
-};
-
-/**
- * @brief
- * Base class for all systems in the ECS architecture
- * Systems operate on entities and their components to implement logic
+ * @brief 
+ * Base class for all systems
+ * Systems are designed to provide specific functions
  */
 class System
 {
 public:
     /**
      * @brief
-     * Construct a new System object. No special initialization is required.
+     * Interface for the context
+     * It holds internally data specific to each system
      */
-    System() = default;
+    class Context
+    {
+    public:
+        virtual ~Context() = default;
+
+        /**
+         * @brief
+         * Helper method to cast Context to derived type
+         */
+        template <typename T>
+        T* As()
+        {
+            return static_cast<T*>(this);
+        }
+
+        /**
+         * @brief
+         * Helper method to cast Context to derived type (const version)
+         */
+        template <typename T>
+        const T* As() const
+        {
+            return static_cast<const T*>(this);
+        }
+    };
 
     /**
      * @brief
-     * Destroy the System object. No special cleanup is required.
+     * Class representing a task to be executed by the system
+     * A task consists of a function and optional additional information
      */
-    ~System() = default;
+    class Task
+    {
+    public:
+        /**
+         * @brief
+         * Interface for additional task information
+         * You can inherit this class to provide custom information for each task
+         */
+        class Info
+        {
+        public:
+            virtual ~Info() = default;
+        };
+
+        /**
+         * @brief 
+         * Alias for a task function that takes a JobScheduler reference
+         * 
+         * @return true
+         * If the task was successful
+         * 
+         * @return false
+         * If the task failed
+         */
+        using Func = std::function<bool(Context&, JobScheduler&)>;
+
+        /**
+         * @brief
+         * Construct a new Task object
+         * 
+         * @param func 
+         * The function to be executed as part of the task
+         * If nullptr is passed, will be asserted
+         */
+        Task(Func func);
+
+        /**
+         * @brief 
+         * Construct a new Task object
+         * 
+         * @param func 
+         * The function to be executed as part of the task
+         * If nullptr is passed, will be asserted
+         * 
+         * @param info 
+         * Additional task information
+         * If nullptr is passed, will be asserted
+         */
+        Task(Func func, std::unique_ptr<Info> info);
+
+        ~Task() = default;
+
+        // Disable copy semantics and enable move semantics
+        Task(const Task&) = delete;
+        Task& operator=(const Task&) = delete;
+        Task(Task&&) noexcept = default;
+        Task& operator=(Task&&) noexcept = default;
+
+        /**
+         * @brief 
+         * Execute the task function
+         * 
+         * @param job_scheduler 
+         * Reference to the JobScheduler
+         * 
+         * @return true 
+         * If the task was successful
+         * 
+         * @return false 
+         * If the task failed
+         */
+        bool Execute(Context& context, JobScheduler& job_scheduler);
+
+        /**
+         * @brief 
+         * Get the task information
+         * 
+         * @return const Info& 
+         * Reference to the Info
+         */
+        const Info& GetInfo() const;
+
+    private:
+        // The function to be executed as part of the task
+        Func func_ = nullptr;
+
+        // Information about the task
+        std::unique_ptr<Info> info_ = nullptr;
+    };
 
     /**
      * @brief
-     * Update by using entity object graph.
-     * 
-     * @param entity_object_graph
-     * The entity object graph to be updated
-     * 
-     * @param world
-     * The world containing entities and components
-     * 
-     * @return true
-     * If the system update will continue
-     * 
-     * @return false
-     * If the system update should stop
+     * Alias for a list of tasks
      */
-    bool Update(World& world, EntityObjectGraph& entity_object_graph);
+    using TaskList = std::vector<Task>;
+
+    /**
+     * @brief
+     * Construct a new System object
+     * 
+     * @param job_scheduler 
+     * Reference to the JobScheduler
+     * 
+     * @param query 
+     * Unique pointer to the Query object 
+     * Can not be nullptr If nullptr is passed, will be asserted
+     */
+    System(JobScheduler& job_scheduler, std::unique_ptr<Context> context);
+
+    /**
+     * @brief Destroy the System object
+     * This class is intended to be used as a base class, so the destructor is virtual
+     */
+    virtual ~System() = default;
+
+    /**
+     * @brief 
+     * Submit a list of tasks to the system for execution
+     * 
+     * @param tasks
+     * List of tasks to be submitted
+     */
+    void SumbitTaskList(TaskList tasks);
+
+    /**
+     * @brief 
+     * Get the Context object
+     * You can use this to access internal data of the system
+     * 
+     * @return 
+     * Reference to the Context object
+     */
+    const Context& GetContext() const;
+
+    /**
+     * @brief
+     * Pre-update phase of the system
+     * 
+     * @return true 
+     * If the pre-update was successful
+     * 
+     * @return false 
+     * If the pre-update failed
+     */
+    virtual bool PreUpdate() = 0;
+
+    /**
+     * @brief
+     * Update phase of the system
+     * 
+     * @return true 
+     * If the update was successful
+     * 
+     * @return false 
+     * If the update failed
+     */
+    virtual bool Update() = 0;
+
+    /**
+     * @brief
+     * Post-update phase of the system
+     * 
+     * @return true 
+     * If the post-update was successful
+     * 
+     * @return false 
+     * If the post-update failed
+     */
+    virtual bool PostUpdate() = 0;
+
+protected:
+    // Static id
+    static uint32_t next_id_;
+
+    // Reference to the JobScheduler
+    JobScheduler& job_scheduler_;
+
+    // Unique pointer to the Context object
+    std::unique_ptr<Context> context_ = nullptr;
+
+    /**
+     * @brief
+     * Task List Queue for managing submitted tasks
+     * This class is thread-safe and handles the queuing of task lists
+     */
+    class TaskListQueue
+    {
+    public:
+        TaskListQueue() = default;
+        ~TaskListQueue() = default;
+
+        /**
+         * @brief
+         * Enqueue a list of tasks into the queue
+         * 
+         * @param tasks
+         * List of tasks to be enqueued
+         */
+        void Enqueue(TaskList tasks);
+
+        /**
+         * @brief
+         * Dequeue a list of tasks from the queue
+         * 
+         * @param tasks 
+         * Reference to store the dequeued list of tasks
+         * TaskList will be moved to the provided reference
+         * 
+         * @return true 
+         * if a task list was successfully dequeued
+         * 
+         * @return false 
+         * if the queue is empty
+         */
+        bool Dequeue(TaskList& tasks);
+
+        /**
+         * @brief
+         * Dequeue all task lists from the queue
+         * 
+         * @return std::vector<TaskList>
+         * Vector containing all dequeued task lists
+         */
+        std::vector<TaskList> Dequeue();
+
+    private:
+        // Internal storage for the task queue
+        std::queue<TaskList> queue_;
+
+        // Mutex for thread-safe access to the queue
+        std::mutex mutex_;
+    };
+
+    // Task List Queue for managing submitted tasks
+    TaskListQueue task_list_queue_;
+};
+
+/**
+ * @brief
+ * Template base class for systems of type T
+ * This class provides a static method to get the unique ID of the system type T
+ */
+template <typename T>
+class SystemBase :
+    public System
+{
+public:
+    /**
+     * @brief
+     * Construct a new System Base object, No special initialization is required.
+     */
+    virtual ~SystemBase() = default;
+
+    /**
+     * @brief
+     * Get the static ID of the system type T
+     * 
+     * @return uint32_t
+     * The static ID of the system type T
+     */
+    static uint32_t ID()
+    {
+        static uint32_t id = next_id_++;
+        return id;
+    }
+};
+
+/**
+ * @brief
+ * System Proxy class for providing a simplified interface to interact with systems
+ * This class allows you to submit tasks and access the system context without directly interacting with the System
+ */
+class SystemProxy
+{
+public:
+    /**
+     * @brief
+     * Construct a new System Proxy object
+     * 
+     * @param system 
+     * Reference to the System to be proxied
+     */
+    SystemProxy(System& system);
+
+    /**
+     * @brief
+     * Wrapper for System::SumbitTaskList
+     * 
+     * @param tasks 
+     * List of tasks to be submitted
+     */
+    void SumbitTaskList(System::TaskList tasks);
+
+    /**
+     * @brief
+     * Wrapper for System::GetContext
+     * 
+     * @return 
+     * Pointer to the Context object casted to the specified type T
+     */
+    template <typename T>
+    const T* GetContext() const
+    {
+        return system_.GetContext().As<T>();
+    }
+
+    /**
+     * @brief
+     * Clone the SystemProxy
+     * 
+     * @return std::unique_ptr<SystemProxy>
+     * Unique pointer to the cloned SystemProxy
+     */
+    std::unique_ptr<SystemProxy> Clone() const;
 
 private:
-    // List of component IDs that this system operates on
-    // Updates are called in the order of these components.
-    const std::vector<uint32_t> component_ids_;
+    // Reference to the proxied System
+    System& system_;
+};
 
-    // Flag indicating whether this is the first update
-    bool is_first_update_ = true;
+/**
+ * @brief
+ * System Proxy Manager class for managing multiple system proxies
+ * This class is a singleton and provides a centralized way to access system proxies
+ */
+class SystemProxyManager :
+    public Singleton<SystemProxyManager>
+{
+public:
+    /**
+     * @brief
+     * Construct a new System Proxy Manager object. No special initialization is required.
+     */
+    SystemProxyManager() = default;
 
-    // Time point of the last update
-    std::chrono::high_resolution_clock::time_point last_update_time_;
+    /**
+     * @brief
+     * Destroy the System Proxy Manager object. No special cleanup is required.
+     */
+    ~SystemProxyManager() override = default;
+
+    /**
+     * @brief
+     * Register a SystemProxy for a specific system type T
+     * 
+     * @param system_id
+     * The unique ID of the system type T
+     * 
+     * @param proxy
+     * Unique pointer to the SystemProxy to be registered
+     */
+    void RegisterSystemProxy(uint32_t system_id, std::unique_ptr<SystemProxy> proxy);
+
+    /**
+     * @brief
+     * Template wrapper for RegisterSystemProxy to register a SystemProxy for a specific system type T
+     * 
+     * @param proxy
+     * Unique pointer to the SystemProxy to be registered
+     */
+    template <typename T>
+    void RegisterSystemProxy(std::unique_ptr<SystemProxy> proxy)
+    {
+        // Get the system ID for the specified system type T
+        uint32_t system_id = SystemBase<T>::ID();
+
+        // Register the SystemProxy for the specified system type T
+        RegisterSystemProxy(system_id, std::move(proxy));
+    }
+
+    /**
+     * @brief
+     * Get the SystemProxy for a specific system type T
+     * 
+     * @return SystemProxy&
+     * Reference to the SystemProxy for the specified system type T
+     */
+    std::unique_ptr<SystemProxy> GetSystemProxy(uint32_t system_id);
+
+    /**
+     * @brief
+     * Template wrapper for GetSystemProxy to get the proxy for a specific system type T
+     * 
+     * @return SystemProxy&
+     * Reference to the SystemProxy for the specified system type T
+     */
+    template <typename T>
+    std::unique_ptr<SystemProxy> GetSystemProxy()
+    {
+        // Get the system ID for the specified system type T
+        uint32_t system_id = SystemBase<T>::ID();
+
+        return GetSystemProxy(system_id);
+    }
+
+private:
+    // Internal storage for system proxies, mapped by system ID
+    std::unordered_map<uint32_t, std::unique_ptr<SystemProxy>> system_proxies_;
+
+    // Mutex for thread-safe access to the system proxies map
+    std::mutex mutex_;
 };
 
 } // namespace tecs

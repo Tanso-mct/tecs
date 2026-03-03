@@ -94,6 +94,16 @@ class ReflectionFieldType : public ReflectionField
 // --- Specialization for types ---
 
 template <>
+class ReflectionFieldType<bool> : public ReflectionField
+{
+public:
+    ReflectionFieldType(std::string_view name, size_t offset) : ReflectionField(name, offset) {}
+    std::string_view GetTypeName() const override { return "bool"; }
+    std::any GetValue(std::byte* instance) const override { return *reinterpret_cast<bool*>(instance + offset_); }
+    void SetValue(std::byte* instance, const std::any& value) const override { *reinterpret_cast<bool*>(instance + offset_) = std::any_cast<bool>(value); }
+};
+
+template <>
 class ReflectionFieldType<int> : public ReflectionField
 {
 public:
