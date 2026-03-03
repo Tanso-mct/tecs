@@ -829,7 +829,10 @@ public:
          * @brief 
          * Execute the task function
          * 
-         * @param job_scheduler 
+         * @param ctx
+         * Reference to the Context object for this system
+         * 
+         * @param job_sched 
          * Reference to the JobScheduler
          * 
          * @return true 
@@ -838,7 +841,7 @@ public:
          * @return false 
          * If the task failed
          */
-        bool Execute(Context& context, JobScheduler& job_scheduler);
+        bool Execute(Context& ctx, JobScheduler& job_sched);
 
         /**
          * @brief 
@@ -867,14 +870,13 @@ public:
      * @brief
      * Construct a new System object
      * 
-     * @param job_scheduler 
+     * @param job_sched 
      * Reference to the JobScheduler
      * 
-     * @param query 
-     * Unique pointer to the Query object 
-     * Can not be nullptr If nullptr is passed, will be asserted
+     * @param ctx
+     * Unique pointer to the Context object for this system
      */
-    System(JobScheduler& job_scheduler, std::unique_ptr<Context> context);
+    System(JobScheduler& job_sched, std::unique_ptr<Context> ctx);
 
     /**
      * @brief Destroy the System object
@@ -1169,5 +1171,44 @@ private:
     // Mutex for thread-safe access to the system proxies map
     std::mutex mutex_;
 };
+
+/**
+ * @brief
+ * Helper function to add a task to a system's task list with a specific context type
+ */
+template <typename ContextType>
+void AddTask(
+    tecs::System::TaskList& task_list, 
+    std::function<bool(ContextType&, tecs::JobScheduler&)> func,
+    std::unique_ptr<tecs::System::Task::Info> info = nullptr)
+{
+    // Create a task function that casts the context to the specified type and executes the provided function
+    tecs::System::Task::Func task_func = 
+        [func = std::move(func)](tecs::System::Context& ctx, tecs::JobScheduler& job_sched) -> bool
+    {
+        // Cast the context to the specified type
+        ContextType* typed_ctx = ctx.As<ContextType>();
+        if (!typed_ctx)
+        {
+            std::cerr << "Failed to cast system context to the specified type." << std::endl;
+            return false; // Cast failed
+        }
+
+        // Execute the provided function with the typed context and job scheduler
+        return func(*typed_ctx, job_sched);
+    };
+
+    // Create a new task with the created task function and provided info, and add it to the task list
+    if (info) // If additional task information is provided, include it in the task
+    {
+        tecs::System::Task task(std::move(task_func), std::move(info));
+        task_list.emplace_back(std::move(task));
+    }
+    else // If no additional task information is provided, create a task without info
+    {
+        tecs::System::Task task(std::move(task_func));
+        task_list.emplace_back(std::move(task));
+    }
+}
 
 } // namespace tecs

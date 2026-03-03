@@ -283,9 +283,9 @@ System::Task::Task(Func func, std::unique_ptr<Info> info) :
     assert(info_ && "Task Info cannot be nullptr");
 }
 
-bool System::Task::Execute(Context& context, JobScheduler& job_scheduler)
+bool System::Task::Execute(Context& ctx, JobScheduler& job_sched)
 {
-    return func_(context, job_scheduler);
+    return func_(ctx, job_sched);
 }
 
 const System::Task::Info& System::Task::GetInfo() const
@@ -294,9 +294,9 @@ const System::Task::Info& System::Task::GetInfo() const
     return *info_;
 }
 
-System::System(JobScheduler& job_scheduler, std::unique_ptr<Context> context) :
-    job_scheduler_(job_scheduler), 
-    context_(std::move(context))
+System::System(JobScheduler& job_sched, std::unique_ptr<Context> ctx) :
+    job_scheduler_(job_sched), 
+    context_(std::move(ctx))
 {
     assert(context_ && "System Context cannot be nullptr");
 }

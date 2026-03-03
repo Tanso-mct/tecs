@@ -17,14 +17,33 @@ public:
     SampleContext() = default;
     ~SampleContext() override = default;
 
+    void ModifyData( tecs::JobScheduler& job_sched,int new_value)
+    {
+        // Schedule a job to modify the sample data
+        tecs::JobHandle job_handle = job_sched.ScheduleJob(tecs::Job([this, new_value]()
+        {
+            // Modify the sample data
+            sample_data_ = new_value;
+
+            // Simulate some work
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        }));
+
+        // Wait for the job to complete
+        job_handle.Wait();
+    }
+
+    int GetData() const { return sample_data_; }
+
+private:
     int sample_data_ = 0;
 };
 
 class SampleSystem : public System
 {
 public:
-    SampleSystem(JobScheduler& job_scheduler) :
-        System(job_scheduler, std::make_unique<SampleContext>())
+    SampleSystem(JobScheduler& job_sched) :
+        System(job_sched, std::make_unique<SampleContext>())
     {
     }
 
@@ -64,35 +83,6 @@ public:
 
 // Constant for modified value in tests
 constexpr const int kModifiedValue = 100;
-
-/**
- * @brief
- * Helper function to create a task that modifies the SampleContext data
- */
-void ModifyContextData(tecs::System::TaskList& task_list)
-{
-    task_list.emplace_back(tecs::System::Task(
-        [](tecs::System::Context& context_arg, tecs::JobScheduler& job_scheduler_arg) -> bool
-    {
-        // Cast context to SampleContext
-        tecs::test::SampleContext* sample_context = context_arg.As<tecs::test::SampleContext>();
-
-        // Schedule a job to modify the context data
-        tecs::JobHandle job_handle = job_scheduler_arg.ScheduleJob(tecs::Job([sample_context]()
-        {
-            // Modify the sample context data
-            sample_context->sample_data_ = tecs::test::kModifiedValue;
-
-            // Simulate some work
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        }));
-
-        // Wait for the job to complete
-        job_handle.Wait();
-
-        return true; // Indicate success
-    }));
-}
 
 /**
  * @brief
@@ -343,8 +333,13 @@ public:
         // Create task list
         tecs::System::TaskList task_list;
 
-        // Modify context data task
-        tecs::test::ModifyContextData(task_list);
+        // Modify the sample context data in the sample system using a task
+        tecs::AddTask<tecs::test::SampleContext>(
+            task_list, [this](tecs::test::SampleContext& ctx, tecs::JobScheduler& job_sched) -> bool
+        {
+            ctx.ModifyData(job_sched, tecs::test::kModifiedValue);
+            return true; // Task executed successfully
+        });
 
         // Get system proxy for sample system
         std::unique_ptr<tecs::SystemProxy> sample_proxy =
@@ -643,10 +638,10 @@ TEST(tecs, use_system)
     EXPECT_NE(num_cores, 0);
 
     // Create job scheduler
-    tecs::JobScheduler job_scheduler(num_cores);
+    tecs::JobScheduler job_sched(num_cores);
 
     // Create sample system
-    tecs::test::SampleSystem sample_system(job_scheduler);
+    tecs::test::SampleSystem sample_system(job_sched);
 
     // Create singleton system proxy manager
     tecs::SystemProxyManager system_proxy_manager;
@@ -664,8 +659,13 @@ TEST(tecs, use_system)
         // Create task list
         tecs::System::TaskList task_list;
 
-        // Modify context data task
-        tecs::test::ModifyContextData(task_list);
+        // Modify the sample context data in the sample system using a task
+        tecs::AddTask<tecs::test::SampleContext>(
+            task_list, [this](tecs::test::SampleContext& ctx, tecs::JobScheduler& job_sched) -> bool
+        {
+            ctx.ModifyData(job_sched, tecs::test::kModifiedValue);
+            return true; // Task executed successfully
+        });
 
         // Get system proxy for sample system
         std::unique_ptr<tecs::SystemProxy> sample_proxy =
@@ -687,7 +687,7 @@ TEST(tecs, use_system)
 
         // Verify that the context data was modified by the task
         const tecs::test::SampleContext* context = sample_proxy->GetContext<tecs::test::SampleContext>();
-        EXPECT_EQ(context->sample_data_, tecs::test::kModifiedValue);
+        EXPECT_EQ(context->GetData(), tecs::test::kModifiedValue);
     }
 }
 
@@ -698,10 +698,10 @@ TEST(tecs, use_ecs)
     EXPECT_NE(num_cores, 0);
 
     // Create job scheduler
-    tecs::JobScheduler job_scheduler(num_cores);
+    tecs::JobScheduler job_sched(num_cores);
 
     // Create sample system
-    tecs::test::SampleSystem sample_system(job_scheduler);
+    tecs::test::SampleSystem sample_system(job_sched);
 
     // Create singleton system proxy manager
     tecs::SystemProxyManager system_proxy_manager;
@@ -769,7 +769,7 @@ TEST(tecs, use_ecs)
 
         // Verify that the context data was modified by the task
         const tecs::test::SampleContext* context = sample_proxy->GetContext<tecs::test::SampleContext>();
-        EXPECT_EQ(context->sample_data_, tecs::test::kModifiedValue);
+        EXPECT_EQ(context->GetData(), tecs::test::kModifiedValue);
     }
     
 }
