@@ -18,6 +18,7 @@ add_library(platform
 
     # ---- Sources ----
 
+    src/window_system.cpp
     src/window_win32.cpp
     src/window_container.cpp
 )
