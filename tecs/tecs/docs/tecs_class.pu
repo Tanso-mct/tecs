@@ -1,0 +1,138 @@
+﻿@startuml
+
+package "tecs" 
+{
+
+class ID 
+{
+     * ID is a class that represents a unique identifier.
+     * It has a 64-bit unsigned integer (bits) that encodes both the ID and generation.
+
+    + ID(): void
+     * @brief : Construct a new ID object as invalid
+
+    + ID(uint32_t id, uint32_t gen): void
+     * @brief : Construct a new ID object with the given ID and generation
+     * @param id : The unique identifier for the id
+     * @param generation : The generation number for the id
+
+    + ~ID() = default
+     * @brief : No special cleanup is needed for the ID object
+
+    + uint32_t GetID() const
+     * @brief : Get the ID of the id
+     * @return uint32_t : The number representing the ID
+
+    + uint32_t GetGen() const
+     * @brief : Get the generation of the id
+     * @return uint32_t : The number representing the generation
+    
+    + bool IsValid() const
+     * @brief : Check if the id is valid
+     * @return true : If the id is valid
+     * @return false : If the id is invalid
+    
+    + uint64_t GetBits() const
+     * @brief : Get the encoded bits representing the id
+     * @return uint64_t : The encoded bits of the id
+
+    + bool operator==(const ID& other) const
+     * @brief : Equality operator to compare two ID objects
+     * @param other : The other ID object to compare with
+     * @return true : If both ID objects are equal
+     * @return false : If the ID objects are not equal
+
+    + bool operator!=(const ID& other) const
+     * @brief : Inequality operator to compare two ID objects
+     * @param other : The other ID object to compare with
+     * @return true : If both ID objects are not equal
+     * @return false : If the ID objects are equal
+
+    + bool operator<(const ID& other) const
+     * @brief : Less-than operator to compare two ID objects
+     * @param other : The other ID object to compare with
+     * @return true : If this ID object is less than the other
+     * @return false : If this ID object is not less than the other
+
+    ---
+    - bits_: uint64_t
+     * The 64-bit unsigned integer that encodes both the ID and generation
+
+    {static} - constexpr unsigned VALID_SHIFT = 0
+    {static} - constexpr unsigned ID_SHIFT = 1
+    {static} - constexpr unsigned GEN_SHIFT = 32
+     * Bit shifts for encoding and decoding the id information
+
+    {static} - constexpr uint64_t VALID_MASK = uint64_t{1} << VALID_SHIFT
+    {static} - constexpr uint64_t ID_MASK = (uint64_t{1} << 31) - 1
+    {static} - constexpr uint64_t GEN_MASK = (uint64_t{1} << 32) - 1
+     * Bit masks for encoding and decoding the id information
+
+    - uint64_t MakeBits(uint32_t id, uint32_t gen, bool valid) const
+     * @brief : Encode the id information into a 64-bit unsigned integer
+     * @param id : The unique identifier for the id
+     * @param gen : The generation number for the id
+     * @param valid : Whether the id is valid or not
+     * @return uint64_t : The encoded bits representing the id
+}
+
+class JobState
+{
+     * Class representing the state of a job
+     * This class is used internally by JobHandle to manage job completion
+
+    + JobState(): void
+     * @brief : Construct a new JobState object with default values
+
+    + ~JobState() = default
+     * @brief : No special cleanup is needed for the JobState object
+
+    + void MarkCompleted()
+     * @brief : Mark the job as completed and notify all waiting threads
+    ---
+    - std::atomic<bool> completed_{false}
+     * @brief : Atomic flag to indicate whether the job is completed
+
+    - std::condition_variable cv_ = {}
+     * @brief : Condition variable to notify waiting threads
+
+    - std::mutex mutex_ = {}
+     * @brief : Mutex to protect access to the condition variable
+}
+
+class JobScheduler
+{
+    + JobScheduler(uint32_t num_worker_threads)
+     * @brief : Construct a new JobScheduler object
+     * @param num_worker_threads : The number of worker threads to use for scheduling jobs
+
+    + ~JobScheduler()
+     * @brief : Worker threads will be joined and cleaned up
+
+    + JobHandle ScheduleJob(Job job)
+     * @brief : Schedule a job for execution
+     * @param job : The job to be scheduled
+     * @return JobHandle : A handle that can be used to track the scheduled job
+    ---
+    - std::queue<std::unique_ptr<JobSet>> job_queue_
+     * @brief : Queue to hold scheduled jobs
+
+    - std::mutex mutex_
+     * @brief : Mutex to protect access to the job queue
+
+    - std::condition_variable cv_
+     * @brief : Condition variable to notify worker threads of new jobs
+
+    - std::atomic<bool> stop_flag_{false}
+     * @brief : Atomic flag to signal the worker thread to stop
+
+    - std::vector<std::thread> worker_threads_
+     * @brief : Worker threads for processing jobs
+
+    - void Work()
+     * @brief : Worker function that processes jobs from the queue
+}
+
+}
+
+@enduml

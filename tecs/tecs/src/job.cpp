@@ -39,12 +39,18 @@ void Job::Execute()
     func_();
 }
 
+JobSet::JobSet(Job job, std::shared_ptr<JobState> state) :
+    job_(std::move(job)), 
+    state_(std::move(state))
+{
+}
+
 JobScheduler::JobScheduler(uint32_t num_worker_threads) :
     stop_flag_(false)
 {
     // Start the specified number of worker threads
     for (uint32_t i = 0; i < num_worker_threads; ++i)
-        worker_thread_.emplace_back(&JobScheduler::Work, this);
+        worker_threads_.emplace_back(&JobScheduler::Work, this);
 }
 
 JobScheduler::~JobScheduler()
@@ -54,7 +60,7 @@ JobScheduler::~JobScheduler()
     cv_.notify_all();
 
     // Join the worker threads
-    for (std::thread& thread : worker_thread_)
+    for (std::thread& thread : worker_threads_)
         if (thread.joinable())
             thread.join();
 }
@@ -77,12 +83,6 @@ JobHandle JobScheduler::ScheduleJob(Job job)
 
     // Return a JobHandle associated with the job's state
     return JobHandle(state);
-}
-
-JobScheduler::JobSet::JobSet(Job job, std::shared_ptr<JobState> state) :
-    job_(std::move(job)), 
-    state_(std::move(state))
-{
 }
 
 void JobScheduler::Work()

@@ -122,6 +122,29 @@ private:
 };
 
 /**
+ * @brief
+ * Struct representing a scheduled job along with its state
+ */
+class JobSet
+{
+public:
+    /**
+     * @brief
+     * Construct a new Job Set object
+     * 
+     * @param job 
+     * The job to be scheduled
+     * 
+     * @param state 
+     * Shared pointer to the JobState
+     */
+    JobSet(Job job, std::shared_ptr<JobState> state);
+
+    Job job_;
+    std::shared_ptr<JobState> state_;
+};
+
+/**
  * @brief 
  * Job Scheduler class responsible for managing job execution
  * Currently a placeholder with no implemented functionality
@@ -160,29 +183,6 @@ public:
     JobHandle ScheduleJob(Job job);
 
 private:
-    /**
-     * @brief
-     * Struct representing a scheduled job along with its state
-     */
-    class JobSet
-    {
-    public:
-        /**
-         * @brief
-         * Construct a new Job Set object
-         * 
-         * @param job 
-         * The job to be scheduled
-         * 
-         * @param state 
-         * Shared pointer to the JobState
-         */
-        JobSet(Job job, std::shared_ptr<JobState> state);
-
-        Job job_;
-        std::shared_ptr<JobState> state_;
-    };
-
     // Queue to hold scheduled jobs
     std::queue<std::unique_ptr<JobSet>> job_queue_;
 
@@ -196,7 +196,7 @@ private:
     std::atomic<bool> stop_flag_{false};
 
     // Worker threads for processing jobs
-    std::vector<std::thread> worker_thread_;
+    std::vector<std::thread> worker_threads_;
 
     /**
      * @brief

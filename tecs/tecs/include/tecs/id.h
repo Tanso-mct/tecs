@@ -9,40 +9,33 @@ namespace tecs
 
 /**
  * @brief
- * Class representing a unique identifier (ID) in the TECS framework
- * The ID consists of a unique identifier, a generation number, and a validity bit
+ * ID is a class that represents a unique identifier.
+ * It has a 64-bit unsigned integer (bits) that encodes both the ID and generation.
  */
 class ID
 {
 public:
     /**
-     * @brief
-     * Construct a new ID object
+     * @brief Construct a new ID object as invalid
      * If no parameters are provided, the id is considered invalid
      */
     ID();
 
     /**
-     * @brief
-     * Construct a new ID object with the given ID and generation
-     * 
-     * @param id 
-     * The unique identifier for the id
-     * 
-     * @param generation 
-     * The generation number for the id
+     * @brief : Construct a new ID object with the given ID and generation
+     * @param id : The unique identifier for the id
+     * @param generation : The generation number for the id
      */
     ID(uint32_t id, uint32_t gen);
 
     /**
-     * @brief
-     * Destroy the ID object. No special cleanup is required.
+     * @brief No special cleanup is needed for the ID object
      */
     ~ID() = default;
 
     /**
-     * @brief
-     * Get the ID of the id
+     * @brief Get the ID of the id
+     * @return uint32_t The number representing the ID
      */
     uint32_t GetID() const;
 
@@ -148,7 +141,7 @@ private:
      * @return uint64_t 
      * The encoded bits representing the id
      */
-    uint64_t MakeBits(size_t id, size_t gen, bool valid);
+    uint64_t MakeBits(uint32_t id, uint32_t gen, bool valid);
 };
 
 } // namespace tecs

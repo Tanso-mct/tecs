@@ -64,7 +64,7 @@ bool ID::operator<(const ID& other) const
     return this_id < other_id;
 }
 
-uint64_t ID::MakeBits(size_t id, size_t gen, bool valid)
+uint64_t ID::MakeBits(uint32_t id, uint32_t gen, bool valid)
 {
     uint64_t bits = 0;
 
