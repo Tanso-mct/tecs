@@ -8,9 +8,10 @@ namespace tecs
 {
 
 // Copy Prohibited Mix-in
-struct NonCopyable
+class NonCopyable
 {
     NonCopyable() = default;
+    ~NonCopyable() = default;
     NonCopyable(const NonCopyable&) = delete;
     NonCopyable& operator=(const NonCopyable&) = delete;
 };

@@ -89,12 +89,6 @@ public:
     /**
      * @brief
      * Alias for the job function
-     * 
-     * @return true
-     * If the job was successful
-     * 
-     * @return false
-     * If the job failed
      */
     using JobFunc = std::function<void()>;
 
