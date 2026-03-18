@@ -138,9 +138,7 @@ public:
 class Reflection
 {
 public:
-    Reflection(
-        std::byte* instance,
-        std::vector<std::unique_ptr<ReflectionField>> fields);
+    Reflection(std::byte* instance, std::vector<std::unique_ptr<ReflectionField>> fields);
 
     /**
      * @brief
