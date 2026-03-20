@@ -1,0 +1,111 @@
+﻿@startuml
+
+class ID 
+{
+     * ID is a class that represents a unique identifier.
+     * It has a 64-bit unsigned integer (bits) that encodes both the ID and generation.
+
+    + ID(): void
+     * @brief : Construct a new ID object as invalid
+
+    + ID(uint32_t id, uint32_t gen): void
+     * @brief : Construct a new ID object with the given ID and generation
+     * @param id : The unique identifier for the id
+     * @param generation : The generation number for the id
+
+    + ~ID() = default
+     * @brief : No special cleanup is needed for the ID object
+
+    + uint32_t GetID() const
+     * @brief : Get the ID of the id
+     * @return uint32_t : The number representing the ID
+
+    + uint32_t GetGen() const
+     * @brief : Get the generation of the id
+     * @return uint32_t : The number representing the generation
+
+    + bool IsValid() const
+     * @brief : Check if the id is valid
+     * @return true : If the id is valid
+     * @return false : If the id is invalid
+
+    + uint64_t GetBits() const
+     * @brief : Get the encoded bits representing the id
+     * @return uint64_t : The encoded bits of the id
+
+    + bool operator==(const ID& other) const
+     * @brief : Equality operator to compare two ID objects
+     * @param other : The other ID object to compare with
+     * @return true : If both ID objects are equal
+     * @return false : If the ID objects are not equal
+
+    + bool operator!=(const ID& other) const
+     * @brief : Inequality operator to compare two ID objects
+     * @param other : The other ID object to compare with
+     * @return true : If both ID objects are not equal
+     * @return false : If the ID objects are equal
+
+    + bool operator<(const ID& other) const
+     * @brief : Less-than operator to compare two ID objects
+     * @param other : The other ID object to compare with
+     * @return true : If this ID object is less than the other
+     * @return false : If this ID object is not less than the other
+
+    ---
+    - bits_: uint64_t
+     * The 64-bit unsigned integer that encodes both the ID and generation
+
+    {static} - constexpr unsigned VALID_SHIFT = 0
+    {static} - constexpr unsigned ID_SHIFT = 1
+    {static} - constexpr unsigned GEN_SHIFT = 32
+     * Bit shifts for encoding and decoding the id information
+
+    {static} - constexpr uint64_t VALID_MASK = uint64_t{1} << VALID_SHIFT
+    {static} - constexpr uint64_t ID_MASK = (uint64_t{1} << 31) - 1
+    {static} - constexpr uint64_t GEN_MASK = (uint64_t{1} << 32) - 1
+     * Bit masks for encoding and decoding the id information
+
+    - uint64_t MakeBits(uint32_t id, uint32_t gen, bool valid) const
+     * @brief : Encode the id information into a 64-bit unsigned integer
+     * @param id : The unique identifier for the id
+     * @param gen : The generation number for the id
+     * @param valid : Whether the id is valid or not
+     * @return uint64_t : The encoded bits representing the id
+}
+
+class NonCopyable
+{
+    * Copy Prohibited Mix-in
+
+    + NonCopyable() = default
+    + ~NonCopyable() = default
+    + NonCopyable(const NonCopyable&) = delete
+    + NonCopyable& operator=(const NonCopyable&) = delete
+}
+
+class Singleton
+{
+    * Template class for creating singleton instances of a given type
+
+    + Singleton()
+     * @brief : Construct a new Singleton object with the default constructor of the type T
+     * Cast to accommodate offset changes during multiple inheritance
+
+    + ~Singleton()
+     * @brief : Clean up the singleton instance
+
+    + {static} T& GetInstance()
+     * @brief : Get the singleton instance of type T
+     * @return T& : Reference to the singleton instance of type T
+    
+    + {static} bool IsInstantiated()
+     * @brief : Check if the singleton instance has been instantiated
+     * @return true : If the singleton instance has been instantiated
+     * @return false : If the singleton instance has not been instantiated
+    ---
+    - {static} inline T* instance_ = nullptr
+     * @brief : Static pointer to hold the singleton instance of type T
+}
+NonCopyable <|-- Singleton
+
+@enduml

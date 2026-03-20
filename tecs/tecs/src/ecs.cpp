@@ -266,8 +266,14 @@ std::unique_ptr<EntityHandle> EntityHandle::Clone() const
     return std::make_unique<EntityHandle>(world_, entity_);
 }
 
-System::Task::Task(Func func) : 
-    func_(func)
+System::Task::Caller::Caller(std::string_view file, int line, std::string_view function) :
+    file_(file), line_(line), function_(function)
+{
+}
+
+System::Task::Task(Func func, Caller caller) :
+    func_(func),
+    caller_(caller)
 {
     assert(func_ && "Task function cannot be nullptr");
 
@@ -275,12 +281,15 @@ System::Task::Task(Func func) :
     info_ = std::make_unique<Info>();
 }
 
-System::Task::Task(Func func, std::unique_ptr<Info> info) :
-    func_(func), 
-    info_(std::move(info))
+System::Task::Task(Func func, std::unique_ptr<Info> info, Caller caller) :
+    func_(func),
+    caller_(caller)
 {
     assert(func_ && "Task function cannot be nullptr");
-    assert(info_ && "Task Info cannot be nullptr");
+
+    // If info is provided, use it
+    if (info) info_ = std::move(info);
+    else info_ = std::make_unique<Info>(); // Otherwise, create default Info
 }
 
 bool System::Task::Execute(Context& ctx, JobScheduler& job_sched)

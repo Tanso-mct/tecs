@@ -1,0 +1,113 @@
+﻿@startuml
+
+class JobState
+{
+     * Class representing the state of a job
+     * This class is used internally by JobHandle to manage job completion
+
+    + JobState(): void
+     * @brief : Construct a new JobState object with default values
+
+    + ~JobState() = default
+     * @brief : No special cleanup is needed for the JobState object
+
+    + void MarkCompleted()
+     * @brief : Mark the job as completed and notify all waiting threads
+    ---
+    - std::atomic<bool> completed_{false}
+     * @brief : Atomic flag to indicate whether the job is completed
+
+    - std::condition_variable cv_ = {}
+     * @brief : Condition variable to notify waiting threads
+
+    - std::mutex mutex_ = {}
+     * @brief : Mutex to protect access to the condition variable
+}
+
+class JobHandle
+{
+    * Handle for a scheduled job
+    * Allows waiting for job completion
+
+    + JobHandle(std::shared_ptr<JobState> state)
+    * @brief : Construct a new JobHandle object with the given job state
+    * @param state : A shared pointer to the JobState object that manages the job's completion
+
+    + ~JobHandle() = default
+     * @brief : No special cleanup is needed for the JobHandle object
+
+    + void Wait()
+     * @brief : Wait for the job to be completed
+    ---
+    - std::shared_ptr<JobState> state_
+     * @brief : Shared pointer to the JobState object that manages the job's completion
+}
+JobHandle o-- JobState
+
+class Job
+{
+    + JobFunc = std::function<void()>
+     * @brief : Alias for the job function type
+    
+    + Job(JobFunc func)
+     * @brief : Construct a new Job object with the given job function
+     * @param func : The function to be executed as part of the job
+
+    + void Execute()
+     * @brief : Execute the job function
+    ---
+    - JobFunc func_
+     * @brief : The function to be executed as part of the job
+}
+
+class JobSet
+{
+     * Set representing a scheduled job along with its state
+
+    + JobSet(Job job, std::shared_ptr<JobState> state)
+     * @brief : Construct a new JobSet object with the given job and job state
+     * @param job : The job to be executed
+     * @param state : A shared pointer to the JobState object that manages the job's completion
+
+    + Job job_
+    + std::shared_ptr<JobState> state_
+}
+JobSet *-- Job
+JobSet o-- JobState
+
+class JobScheduler
+{
+    + JobScheduler(uint32_t num_worker_threads)
+     * @brief : Construct a new JobScheduler object
+     * @param num_worker_threads : The number of worker threads to use for scheduling jobs
+
+    + ~JobScheduler()
+     * @brief : Worker threads will be joined and cleaned up
+
+    + JobHandle ScheduleJob(Job job)
+     * @brief : Schedule a job for execution
+     * @param job : The job to be scheduled
+     * @return JobHandle : A handle that can be used to track the scheduled job
+    ---
+    - std::queue<std::unique_ptr<JobSet>> job_queue_
+     * @brief : Queue to hold scheduled jobs
+
+    - std::mutex mutex_
+     * @brief : Mutex to protect access to the job queue
+
+    - std::condition_variable cv_
+     * @brief : Condition variable to notify worker threads of new jobs
+
+    - std::atomic<bool> stop_flag_{false}
+     * @brief : Atomic flag to signal the worker thread to stop
+
+    - std::vector<std::thread> worker_threads_
+     * @brief : Worker threads for processing jobs
+
+    - void Work()
+     * @brief : Worker function that processes jobs from the queue
+}
+JobScheduler *-- JobSet
+JobScheduler ..> JobHandle
+
+@enduml

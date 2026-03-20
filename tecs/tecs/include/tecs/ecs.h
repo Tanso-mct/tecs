@@ -781,6 +781,46 @@ public:
             virtual ~Info() = default;
         };
 
+        class Caller
+        {
+        public:
+            /**
+             * @brief Construct a new Caller object
+             * @param file : The file from which the task was called
+             * @param line : The line number from which the task was called
+             * @param function : The function from which the task was called
+             */
+            Caller(std::string_view file, int line, std::string_view function);
+
+            /**
+             * @brief Destroy the Caller object
+             */
+            ~Caller() = default;
+
+            /**
+             * @brief Get the file from which the task was called
+             * @return std::string_view The file from which the task was called
+             */
+            std::string_view GetFile() const { return file_; }
+
+            /**
+             * @brief Get the line number from which the task was called
+             * @return int The line number from which the task was called
+             */
+            int GetLine() const { return line_; }
+
+            /**
+             * @brief Get the function from which the task was called
+             * @return std::string_view The function from which the task was called
+             */
+            std::string_view GetFunction() const { return function_; }
+
+        private:
+            std::string file_;
+            int line_;
+            std::string function_;
+        };
+
         /**
          * @brief 
          * Alias for a task function that takes a JobScheduler reference
@@ -801,7 +841,7 @@ public:
          * The function to be executed as part of the task
          * If nullptr is passed, will be asserted
          */
-        Task(Func func);
+        Task(Func func, Caller caller = Caller("Unknown", 0, "Unknown"));
 
         /**
          * @brief 
@@ -815,7 +855,7 @@ public:
          * Additional task information
          * If nullptr is passed, will be asserted
          */
-        Task(Func func, std::unique_ptr<Info> info);
+        Task(Func func, std::unique_ptr<Info> info = nullptr, Caller caller = Caller("Unknown", 0, "Unknown"));
 
         ~Task() = default;
 
@@ -852,12 +892,24 @@ public:
          */
         const Info& GetInfo() const;
 
+        /**
+         * @brief 
+         * Get the caller information
+         * 
+         * @return const Caller& 
+         * Reference to the Caller
+         */
+        const Caller& GetCaller() const { return caller_; }
+
     private:
         // The function to be executed as part of the task
         Func func_ = nullptr;
 
         // Information about the task
         std::unique_ptr<Info> info_ = nullptr;
+
+        // Information about the caller of the task
+        Caller caller_;
     };
 
     /**
@@ -1180,7 +1232,8 @@ template <typename ContextType>
 void AddTask(
     tecs::System::TaskList& task_list, 
     std::function<bool(ContextType&, tecs::JobScheduler&)> func,
-    std::unique_ptr<tecs::System::Task::Info> info = nullptr)
+    std::unique_ptr<tecs::System::Task::Info> info = nullptr,
+    std::string_view file = "Unknown", int line = 0, std::string_view function = "Unknown")
 {
     // Create a task function that casts the context to the specified type and executes the provided function
     tecs::System::Task::Func task_func = 
@@ -1198,15 +1251,18 @@ void AddTask(
         return func(*typed_ctx, job_sched);
     };
 
+    // Create a Caller object with the provided file, line, and function information
+    tecs::System::Task::Caller caller(file, line, function);
+
     // Create a new task with the created task function and provided info, and add it to the task list
     if (info) // If additional task information is provided, include it in the task
     {
-        tecs::System::Task task(std::move(task_func), std::move(info));
+        tecs::System::Task task(std::move(task_func), std::move(info), caller);
         task_list.emplace_back(std::move(task));
     }
     else // If no additional task information is provided, create a task without info
     {
-        tecs::System::Task task(std::move(task_func));
+        tecs::System::Task task(std::move(task_func), caller);
         task_list.emplace_back(std::move(task));
     }
 }

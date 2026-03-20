@@ -17,7 +17,7 @@ public:
     SampleContext() = default;
     ~SampleContext() override = default;
 
-    void ModifyData( tecs::JobScheduler& job_sched,int new_value)
+    void ModifyData(tecs::JobScheduler& job_sched, int new_value)
     {
         // Schedule a job to modify the sample data
         tecs::JobHandle job_handle = job_sched.ScheduleJob(tecs::Job([this, new_value]()
@@ -67,6 +67,13 @@ public:
             {
                 if (!task.Execute(*context_, job_scheduler_))
                     return false; // Task execution failed
+
+                // Output task caller information for debugging
+                const auto& caller = task.GetCaller();
+                std::cout 
+                << "Executed task called from file: " << caller.GetFile()
+                << ", line: " << caller.GetLine()
+                << ", function: " << caller.GetFunction() << std::endl;
             }
         }
 
@@ -339,7 +346,7 @@ public:
         {
             ctx.ModifyData(job_sched, tecs::test::kModifiedValue);
             return true; // Task executed successfully
-        });
+        }, nullptr, __FILE__, __LINE__, __FUNCTION__);
 
         // Get system proxy for sample system
         std::unique_ptr<tecs::SystemProxy> sample_proxy =
@@ -348,8 +355,6 @@ public:
         // Submit task list to the system via proxy
         sample_proxy->SumbitTaskList(std::move(task_list));
     }
-
-
 
 private:
     // Active state of the behavior

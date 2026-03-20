@@ -10,6 +10,7 @@ namespace tecs
 // Copy Prohibited Mix-in
 class NonCopyable
 {
+public:
     NonCopyable() = default;
     ~NonCopyable() = default;
     NonCopyable(const NonCopyable&) = delete;
