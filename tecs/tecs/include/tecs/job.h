@@ -13,6 +13,102 @@
 namespace tecs
 {
 
+class Job
+{
+
+};
+
+class WorkerThread
+{
+public:
+    WorkerThread() = default;
+    ~WorkerThread() = default;
+
+    /**
+     * @brief
+     * Start the worker thread to execute the given function
+     * 
+     * @param func
+     * The function to be executed in the worker thread
+     */
+    void Start(std::function<void()> func);
+
+    /**
+     * @brief
+     * Stop the worker thread and wait for it to finish execution
+     */
+    void Stop();
+
+    /**
+     * @brief
+     * Check if the worker thread is currently running (executing a job)
+     * 
+     * @return true
+     * If the worker thread is currently executing a job
+     * 
+     * @return false
+     * If the worker thread is idle (not executing a job)
+     */
+    bool IsRunning() const;
+
+    /**
+     * @brief
+     * Dispatch a job to the worker thread for execution
+     * 
+     * @param job
+     * The job to be executed by the worker thread
+     * 
+     * @return bool 
+     */
+    bool DispatchJob(std::unique_ptr<Job> job);
+
+
+};
+
+
+class ThreadProvider
+{
+public:
+    ThreadProvider() = default;
+    ~ThreadProvider() = default;
+
+    /**
+     * @brief
+     * Get the number of CPU cores available
+     * 
+     * @return uint32_t
+     * The number of CPU cores
+     */
+    uint32_t GetCpuCoreCount();
+
+    /**
+     * @brief
+     * Create a new thread to execute the given function
+     * 
+     * @param func
+     * The function to be executed in the new thread
+     */
+    void CreateThread(std::function<void()> func);
+
+    /**
+     * @brief
+     * Create multiple threads to execute the given function
+     * 
+     * @param func
+     * The function to be executed in each new thread
+     * 
+     * @param num_threads
+     * The number of threads to create
+     */
+    void CreateThreads(std::function<void()> func, uint32_t num_threads);
+
+
+
+private:
+    // Vector to hold created threads
+    std::vector<std::thread> threads_;
+};
+
 // Forward declaration
 class JobHandle;
 
