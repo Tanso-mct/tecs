@@ -1,18 +1,96 @@
 ﻿@startuml
 
+class JobType
+{
+    + JobType(std::string name, uint32_t id, uint32_t priority, uint32_t cost)
+     * @brief : Construct a new JobType object with the specified parameters
+     * @param name : The name of the job type
+     * @param id : A unique identifier for the job type
+     * @param priority : The priority level of the job type
+     * @param cost : An estimate of the computational cost of jobs of this type
+
+    + ~JobType() = default
+
+    + std::string_view GetName() const
+     * @brief : Get the name of the job type
+     * @return std::string_view : The name of the job type
+
+    + uint32_t GetID() const
+     * @brief : Get the unique identifier of the job type
+     * @return uint32_t : The unique identifier of the job type
+
+    + uint32_t GetPriority() const
+     * @brief : Get the priority level of the job type
+     * @return uint32_t : The priority level of the job type
+
+    + uint32_t GetCost() const
+     * @brief : Get the estimated computational cost of jobs of this type
+     * @return uint32_t : The estimated computational cost of jobs of this type
+    ---
+    - std::string name_
+     * @brief : The name of the job type, used for identification and categorization
+
+    - uint32_t id_
+     * @brief : A unique identifier for the job type, used for efficient lookup and management
+
+    - uint32_t priority_
+     * @brief : The priority level of the job type, which can be used to determine the order of job execution
+
+    - uint32_t cost_
+     * @brief : An estimate of the computational cost
+}
+
 class JobState
 {
+    + JobState(JobType type, std::weak_ptr<bool> is_completed)
+     * @brief : Construct a new JobState object with the specified job type and completion status
+     * @param type : The type of the job
+     * @param is_completed : A weak pointer to a boolean that indicates whether the job has been completed
+
+    + ~JobState() = default
+
+    + bool IsCompleted() const
+     * @brief : Check if the job has been completed
+     * @return bool : True if the job is completed, false otherwise
+
+    + bool WaitForCompletion() const
+     * @brief : Wait for the job to be completed and return the completion status
+     * @return bool : True if the job is completed, false otherwise
     ---
+    - std::weak_ptr<bool> is_completed_
+     * @brief : A weak pointer to a boolean that indicates whether the job has been completed
 }
-JobState --> Job
+JobState ..> Job
 
 class Job
 {
+    + Job(JobType type, std::function<void()> job_fun)
+     * @brief : Construct a new Job object with the specified job type and function to execute
+     * @param type : The type of the job
+     * @param job_fun : The function that represents the work to be done by the job
+
+    + ~Job() = default
+
     + JobState GetState() const
      * @brief : Get the current state of the job
-     * @return JobState : The current state of the job (e.g., pending, running, completed)
+     * @return JobState : The current state of the job
+
+    + JobType GetType() const
+     * @brief : Get the type of the job
+     * @return JobType : The type of the job
+
+    + void Execute()
+     * @brief : Execute the job's function and update the completion status
+     * @note : This method should be called by the worker thread that is processing the job
+    
     ---
+    - std::function<void()> job_fun_
+     * @brief : The function that represents the work to be done by the job
+
+    - std::shared_ptr<bool> is_completed_
+     * @brief : A shared pointer to a boolean that indicates whether the job has been completed
 }
+Job *-- JobType
 
 class WorkerThread
 {
@@ -31,6 +109,10 @@ class WorkerThread
      * @brief : Check if the worker thread is currently idle (not processing a job)
      * @return bool : True if the worker thread is idle, false otherwise
 
+    + JobType GetWorkingJobType() const
+     * @brief : Get the type of job that the worker thread is currently processing
+     * @return JobType : The type of job being processed, or a default value if the worker thread is idle
+
     - void Work()
      * @brief : The main loop of the worker thread that continuously checks for new jobs to process
     ---
@@ -45,6 +127,10 @@ class WorkerThreadProvider
      * @brief : Get the number of CPU cores available on the system
      * @return uint32_t : The number of CPU cores
 
+    + uint32_t GetWorkerThreadCount() const
+     * @brief : Get the total number of worker threads currently managed by the provider
+     * @return uint32_t : The total number of worker threads
+
     + bool CreateWorkerThread()
      * @brief : Create a new worker thread that will execute the provided job function
      * @param jobFunction : The function to be executed by the worker thread
@@ -58,12 +144,20 @@ class WorkerThreadProvider
     + WorkerThread* GetIdleWorkerThread()
      * @brief : Get an idle worker thread from the pool
      * @return WorkerThread* : A pointer to an idle worker thread, or nullptr if no idle threads are available
-    ---
-    - std::vector<WorkerThread> running_threads_
-     * @brief : A vector that holds the currently running worker threads
 
-    - std::vector<WorkerThread> idle_threads_
-     * @brief : A vector that holds the currently idle worker threads
+    + const WorkerThread* GetWorkerThread(uint32_t index) const
+     * @brief : Get a worker thread by its index in the pool
+     * @param index : The index of the worker thread to retrieve
+     * @return const WorkerThread* : A pointer to the worker thread at the specified index, or nullptr if the index is out of range
+    ---
+    - std::vector<WorkerThread> worker_threads_
+     * @brief : A vector that holds all the worker threads managed by the provider
+
+    - std::vector<WorkerThread*> running_threads_
+     * @brief : A vector that holds pointers to the currently running worker threads
+
+    - std::vector<WorkerThread*> idle_threads_
+     * @brief : A vector that holds pointers to the currently idle worker threads
 }
 WorkerThreadProvider *-- WorkerThread
 
@@ -78,6 +172,10 @@ class JobScheduler
      * @brief : Schedule a job to be executed by an idle worker thread
      * @param job : The job to be scheduled
      * @return JobState : The state of the scheduled job (e.g., pending, running, completed)
+
+    + const WorkerThreadProvider& GetWorkerThreadProvider() const
+     * @brief : Get a const reference to the worker thread provider used by the job scheduler
+     * @return const WorkerThreadProvider& : A reference to the worker thread provider
     ---
     - WorkerThreadProvider worker_thread_provider_
      * @brief : The provider that manages the worker threads for executing jobs
