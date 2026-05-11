@@ -205,7 +205,7 @@ class TaskProcessor
     + TaskProcessor() = default
     + ~TaskProcessor() = default
 
-    + bool Flush(TaskListQueue& task_queue, Port& write_port, Port& read_port)
+    + bool FlushTasks(TaskListQueue& task_queue, Port& write_port, Port& read_port)
      * @brief : Process the tasks in the task queue using the provided write and read ports
      * @param task_queue : The task queue to process tasks from
      * @param write_port : The write port to use writeable adapters
@@ -236,13 +236,22 @@ class System
      * @param read_port : A unique pointer to the read port to use readable adapters
      * @return bool : True if the system was successfully initialized, false otherwise
 
-    + TaskListQueue& GetTaskQueue()
-     * @brief : Get a reference to the task list queue for the system
-     * @return TaskListQueue& : A reference to the task list queue for the system
+    + void SubmitTaskList(TaskList task_list, TaskCallerInfo caller_info)
+     * @brief : Submit a task list to the system for processing
+     * @param task_list : The task list to submit to the system
+     * @param caller_info : The information about the caller of the task list
 
     + const Port& GetReadPort() const
      * @brief : Get a reference to the read port for the system
      * @return const Port& : A reference to the read port for the system
+
+    + bool FlushTasks()
+     * @brief : Flush the tasks in the system's task queue using the task processor
+     * @return bool : True if the tasks were successfully flushed, false otherwise
+
+    + TaskInfo GetCurrentTaskInfo() const
+     * @brief : Get the information about the currently executing task in the system
+     * @return TaskInfo : The information about the currently executing task in the system
     ---
     - TaskProcessor task_processor_
      * @brief : The task processor for the system
@@ -276,8 +285,12 @@ SystemBase --|> System
 
 class UserSystem
 {
-    + UserSystem() = default
+    + UserSystem()
+     * @brief : Construct a new UserSystem object, which is a user-defined implementation of a system
+     * It needs to implement the Initialize method to set up the write and read ports
+
     + ~UserSystem() override = default
+    ---
 }
 UserSystem --|> SystemBase
 note top of UserSystem
@@ -287,13 +300,48 @@ end note
 
 class SystemView
 {
+    + SystemView(System& system)
+     * @brief : Construct a new SystemView object for the specified system
+     * @param system : The system to create a view for
+
+    + ~SystemView() = default
+
+    + void SubmitTaskList(TaskList task_list, TaskCallerInfo caller_info)
+     * @brief : Submit a task list to the system view for processing
+     * @param task_list : The task list to submit to the system view
+     * @param caller_info : The information about the caller of the task list
+
+    + const Port& GetReadPort() const
+     * @brief : Get a reference to the read port for the system view
+     * @return const Port& : A reference to the read port for the system view
+
+    + std::unique_ptr<SystemView> Clone() const
+     * @brief : Create a new instance of the system view that is a copy of the current instance
+     * @return std::unique_ptr<SystemView> : A unique pointer to the cloned system view
+    ---
+    - System& system_
+     * @brief : A reference to the system that this view represents
 
 }
 SystemView ..> System
 
 class SystemViewRegistry
 {
+    + SystemViewRegistry() = default
+    + ~SystemViewRegistry() = default
 
+    + void RegisterView(uint32_t system_id, std::unique_ptr<SystemView> view)
+     * @brief : Register a system view with the registry for a specific system ID
+     * @param system_id : The unique identifier of the system to register the view for
+     * @param view : A unique pointer to the system view to register
+
+    + std::unique_ptr<SystemView> GetView(uint32_t system_id) const
+     * @brief : Get the system view registered for a specific system ID from the registry
+     * @param system_id : The unique identifier of the system to get the view for
+     * @return std::unique_ptr<SystemView> : A unique pointer to the system view registered for the specified system ID
+    ---
+    - std::unordered_map<uint32_t, std::unique_ptr<SystemView>> views_
+     * @brief : A map of system IDs to their corresponding registered system views
 }
 SystemViewRegistry *-- SystemView
 
