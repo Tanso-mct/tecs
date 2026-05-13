@@ -1,0 +1,305 @@
+﻿@startuml
+
+class Entity
+{
+    + Entity()
+     * @brief : Initializes the entity with invalid state
+
+    + Entity(uint32_t id, uint32_t gen)
+     * @brief : Initializes the entity with a specific ID and generation
+     * @param id : The unique identifier for the entity
+     * @param gen : The generation count for the entity
+
+    + uint32_t GetID() const
+     * @brief : Retrieves the unique identifier of the entity
+     * @return : Returns the ID of the entity
+
+    + uint32_t GetGen() const
+     * @brief : Retrieves the generation count of the entity
+     * @return : Returns the generation count of the entity
+
+    + bool IsValid() const
+     * @brief : Checks if the entity is valid
+     * @return : Returns true if the entity is valid, false otherwise
+
+    + uint64_t GetBits() const
+     * @brief : Retrieves a combined representation of the entity's ID and generation
+     * @return : Returns a 64-bit value representing the entity
+
+    bool operator==(const Entity& other) const
+     * @brief : Compares this entity with another for equality
+     * @param other : The other entity to compare with
+     * @return : Returns true if both entities are equal, false otherwise
+
+    bool operator!=(const Entity& other) const
+     * @brief : Compares this entity with another for inequality
+     * @param other : The other entity to compare with
+     * @return : Returns true if both entities are not equal, false otherwise
+
+    bool operator<(const Entity& other) const
+     * @brief : Compares this entity with another for ordering
+     * @param other : The other entity to compare with
+     * @return : Returns true if this entity is less than the other, false otherwise
+    ---
+    - uint64_t bits_
+     * @brief : A combined representation of the entity's ID and generation
+
+    {static} - constexpr unsigned VALID_SHIFT = 0
+    {static} - constexpr unsigned ID_SHIFT = 1
+    {static} - constexpr unsigned GEN_SHIFT = 32
+
+    {static} - constexpr uint64_t VALID_MASK = uint64_t{1} << VALID_SHIFT
+    {static} - constexpr uint64_t ID_MASK = (uint64_t{1} << 31) - 1
+    {static} - constexpr uint64_t GEN_MASK = (uint64_t{1} << 32) - 1
+
+    - uint64_t MakeBits(uint32_t id, uint32_t gen, uint32_t valid) const
+     * @brief : Combines the ID, generation, and validity into a single 64-bit value
+     * @param id : The unique identifier for the entity
+     * @param gen : The generation count for the entity
+     * @param valid : The validity flag for the entity
+     * @return : Returns a 64-bit value representing the entity
+}
+
+abstract class ComponentConfig
+{
+     * Base class for component configuration, to be inherited by specific component configurations
+     * This class can be extended to include specific configuration parameters for different components
+
+    + virtual ~ComponentConfig() = default
+    ---
+}
+
+class UserComponentConfig
+{
+    ---
+}
+UserComponentConfig --|> ComponentConfig
+note top of UserComponentConfig
+    This is an example of a user-defined component configuration
+    Users can create their own component configurations
+end note
+
+abstract class Component
+{
+    + Component(std::string_view name, const GUID& guid)
+     * @brief : Constructor for the Component class
+     * @param name : The name of the component
+     * @param guid : The unique identifier for the component type
+
+    + virtual ~Component() = default
+
+    + virtual bool Import(std::unique_ptr<ComponentConfig> config) = 0
+     * @brief : Imports the component configuration
+     * @param config : A unique pointer to the component configuration
+     * @return : Returns true if the import was successful, false otherwise
+
+    + virtual std::unique_ptr<ComponentConfig> Export() const = 0
+     * @brief : Exports the component configuration
+     * @return : Returns a unique pointer to the component configuration
+
+    + virtual bool Update(Object object) = 0
+     * @brief : Updates the component based on the given object
+     * @param object : The object to update the component with
+     * @return : Returns true if the update was successful, false otherwise
+
+    + std::string_view GetName() const
+     * @brief : Retrieves the name of the component
+     * @return : Returns the name of the component
+
+    + GUID GetGUID() const
+     * @brief : Retrieves the unique identifier of the component type
+     * @return : Returns the GUID of the component type
+
+    {static} + uint32_t GetMaxRuntimeID()
+     * @brief : Retrieves the maximum runtime ID for components
+     * @return : Returns the maximum runtime ID that can be assigned to components
+    ---
+    {static} # uint32_t next_runtime_id_
+     * @brief : The next available runtime ID for components
+
+    - const std::string name_
+     * @brief : The name of the component
+
+    - const GUID guid_
+     * @brief : The unique identifier for the component type
+}
+Component ..> ComponentConfig
+Component ..> Object
+
+class ComponentBase
+{
+    {static} + uint32_t GetRuntimeID()
+     * @brief : Retrieves the runtime ID of the component type
+     * @return : Returns a unique runtime ID for the component type
+    ---
+}
+ComponentBase --|> Component
+
+class UserComponent
+{
+    ---
+}
+UserComponent --|> ComponentBase
+note top of UserComponent
+    This is an example of a user-defined component
+    Users can create their own components
+end note
+
+class Registry
+{
+    + Registry() = default
+    + ~Registry() = default
+
+    + Registry(const Registry&) = delete
+    + Registry& operator=(const Registry&) = delete
+
+    + Registry(Registry&&) = default
+    + Registry& operator=(Registry&&) = default
+
+    + Entity CreateEntity()
+     * @brief : Creates a new entity in the registry
+     * @return : Returns the newly created entity
+
+    + bool DestroyEntity(Entity entity)
+     * @brief : Destroys an entity in the registry
+     * @param entity : The entity to be destroyed
+     * @return : Returns true if the entity was destroyed successfully, false otherwise
+
+    + bool CommitEntity(Entity entity)
+     * @brief : Commits an entity to the registry, making it's components active
+     * @param entity : The entity to be committed
+     * @return : Returns true if the entity was committed successfully, false otherwise
+
+    + bool CheckEntityValidity(Entity entity) const
+     * @brief : Checks if an entity is valid in the registry
+     * @param entity : The entity to check for validity
+     * @return : Returns true if the entity is valid, false otherwise
+
+    + bool AddComponent(Entity entity, std::unique_ptr<Component> component)
+     * @brief : Adds a component to an entity in the registry
+     * @param entity : The entity to which the component will be added
+     * @param component : A unique pointer to the component to be added
+     * @return : Returns true if the component was added successfully, false otherwise
+
+    + bool HasComponent(Entity entity, uint32_t component_runtime_id) const
+     * @brief : Checks if an entity has a specific component type in the registry
+     * @param entity : The entity to check for the component
+     * @param component_runtime_id : The runtime ID of the component type to check for
+     * @return : Returns true if the entity has the component, false otherwise
+
+    + Component* GetComponent(Entity entity, uint32_t component_runtime_id)
+     * @brief : Retrieves a pointer to a specific component of an entity in the registry
+     * @param entity : The entity from which to retrieve the component
+     * @param component_runtime_id : The runtime ID of the component type to retrieve
+     * @return : Returns a pointer to the component if it exists, nullptr otherwise
+
+    + const Component* GetComponent(Entity entity, uint32_t component_runtime_id) const
+     * @brief : Retrieves a const pointer to a specific component of an entity in the registry
+     * @param entity : The entity from which to retrieve the component
+     * @param component_runtime_id : The runtime ID of the component type to retrieve
+     * @return : Returns a const pointer to the component if it exists, nullptr otherwise
+
+    + std::vector<uint32_t> GetComponentTypes(Entity entity) const
+     * @brief : Retrieves a list of component types that an entity has in the registry
+     * @param entity : The entity for which to retrieve the component runtime IDs
+     * @return : Returns a vector of component runtime IDs that the entity has
+
+    + bool RemoveComponent(Entity entity, uint32_t component_runtime_id)
+     * @brief : Removes a specific component from an entity in the registry
+     * @param entity : The entity from which to remove the component
+     * @param component_runtime_id : The runtime ID of the component type to remove
+     * @return : Returns true if the component was removed successfully, false otherwise
+
+    + const std::set<Entity>& View(uint32_t component_runtime_id) const
+     * @brief : Retrieves a set of entities that have a specific component type in the registry
+     * @param component_runtime_id : The runtime ID of the component type to view
+     * @return : Returns a const reference to a set of entities that have the specified component type
+    ---
+    - using ComponentMap = std::unordered_map<uint32_t, std::unique_ptr<Component>>
+     * @brief : A type alias for a map that associates component runtime IDs with their corresponding components
+
+    - std::unordered_map<Entity, ComponentMap> entity_to_components_
+     * @brief : A map that associates entities with their components
+
+    - std::unordered_map<uint32_t, std::set<Entity>> component_to_entities_
+     * @brief : A map that associates component runtime IDs with the set of entities that have that component
+
+    - std::vector<Entity> entities_
+     * @brief : A vector that stores all entities in the registry
+
+    - std::vector<bool> entity_validity_
+     * @brief : A vector that tracks the validity of entities in the registry
+
+    - std::vector<Entity> free_entities_
+     * @brief : A vector that stores entities that have been destroyed and can be reused
+
+    - bool CheckEntityExists(Entity entity) const
+     * @brief : Checks if an entity exists in the registry
+     * @param entity : The entity to check for existence
+     * @return : Returns true if the entity exists, false otherwise
+}
+Registry ..> Entity
+Registry *-- Component
+
+class Object
+{
+    + Object(Entity entity, Registry& registry)
+     * @brief : Constructor for the Object class
+     * @param entity : The entity associated with this object
+     * @param registry : The registry that manages the components of this object
+
+    + ~Object() = default
+
+    + bool IsValid() const
+     * @brief : Checks if the object is valid (has a valid entity)
+     * @return : Returns true if the object is valid, false otherwise
+
+    template<typename ComponentType>
+    + bool AddComponent(std::unique_ptr<ComponentConfig> config = nullptr)
+     * @brief : Adds a component to the object
+     * @param ComponentType : The type of the component to add
+     * @param config : Optional configuration for the component
+     * @return : Returns true if the component was added successfully, false otherwise
+
+    template<typename ComponentType>
+    + bool HasComponent() const
+     * @brief : Checks if the object has a specific component
+     * @param ComponentType : The type of the component to check for
+     * @return : Returns true if the object has the component, false otherwise
+
+    template<typename ComponentType>
+    + Component* GetComponent()
+     * @brief : Retrieves a pointer to a specific component of the object
+     * @param ComponentType : The type of the component to retrieve
+     * @return : Returns a pointer to the component if it exists, nullptr otherwise
+
+    template<typename ComponentType>
+    + const Component* GetComponent() const
+     * @brief : Retrieves a const pointer to a specific component of the object
+     * @param ComponentType : The type of the component to retrieve
+     * @return : Returns a const pointer to the component if it exists, nullptr otherwise
+
+    std::vector<uint32_t> GetComponentTypes() const
+     * @brief : Retrieves a list of component types that the object has
+     * @return : Returns a vector of component type IDs
+
+    template<typename ComponentType>
+    + bool RemoveComponent()
+     * @brief : Removes a specific component from the object
+     * @param ComponentType : The type of the component to remove
+     * @return : Returns true if the component was removed successfully, false otherwise
+
+    std::unique_ptr<Object> Clone() const
+     * @brief : Creates a clone of the object
+     * @return : Returns a unique pointer to the cloned object
+    ---
+    - Registry& registry_
+     * @brief : The reference to the registry
+
+    - Entity entity_
+     * @brief : The entity associated with this object
+}
+Object ..> Entity
+Object ..> Registry
+
+@enduml
