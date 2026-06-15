@@ -42,9 +42,11 @@ class JobType
 
 class JobState
 {
-    + JobState(std::weak_ptr<bool> is_completed)
+    + JobState(std::weak_ptr<bool> is_completed, std::condition_variable& condition, std::mutex& mutex)
      * @brief : Construct a new JobState object with the specified job type and completion status
      * @param is_completed : A weak pointer to a boolean that indicates whether the job has been completed
+     * @param condition : A reference to a condition variable
+     * @param mutex : A reference to a mutex to protect access to the job's completion status and condition variable
 
     + ~JobState() = default
 
@@ -58,6 +60,12 @@ class JobState
     ---
     - std::weak_ptr<bool> is_completed_
      * A weak pointer to a boolean that indicates whether the job has been completed
+
+    - std::condition_variable& condition_
+     * A reference to a condition variable that can be used to wait for the job's completion status to change
+
+    - std::mutex& mutex_
+     * A mutex to protect access to the job's completion status and condition variable
 }
 JobState ..> Job
 
@@ -105,10 +113,10 @@ class WorkerThread
      * @brief : Get the unique identifier of the worker thread
      * @return uint32_t : The unique identifier of the worker thread
 
-    + bool DispatchJob(Job job)
+    + JobState DispatchJob(Job job)
      * @brief : Dispatch a job to be executed by the worker thread
      * @param job : The job to be executed
-     * @return bool : True if the job was successfully dispatched, false if the worker thread is already running a job
+     * @return JobState : The state of the dispatched job
 
     + bool IsIdle() const
      * @brief : Check if the worker thread is currently idle (not processing a job)
@@ -136,6 +144,8 @@ class WorkerThread
     - JobType current_job_type_
      * The type of job currently being processed by the worker thread, or a default value if idle
 }
+WorkerThread ..> Job
+WorkerThread ..> JobState
 
 class WorkerThreadProvider
 {
@@ -242,6 +252,8 @@ class JobTracker
     - WorkerThreadProvider& worker_thread_provider_
      * A reference to the worker thread provider that manages the worker threads used for executing jobs
 }
+JobTracker ..> WorkerThreadProvider
+JobTracker ..> JobExecutionInfo
 
 
 @enduml
