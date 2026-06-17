@@ -2,12 +2,10 @@
 
 class JobType
 {
-    + JobType(std::string name, uint32_t id, uint32_t priority, uint32_t cost)
+    + JobType(std::string name, uint32_t id)
      * @brief : Construct a new JobType object with the specified parameters
      * @param name : The name of the job type
      * @param id : A unique identifier for the job type
-     * @param priority : The priority level of the job type
-     * @param cost : An estimate of the computational cost of jobs of this type
 
     + ~JobType() = default
 
@@ -19,25 +17,12 @@ class JobType
      * @brief : Get the unique identifier of the job type
      * @return uint32_t : The unique identifier of the job type
 
-    + uint32_t GetPriority() const
-     * @brief : Get the priority level of the job type
-     * @return uint32_t : The priority level of the job type
-
-    + uint32_t GetCost() const
-     * @brief : Get the estimated computational cost of jobs of this type
-     * @return uint32_t : The estimated computational cost of jobs of this type
     ---
     - std::string name_
      * The name of the job type, used for identification and categorization
 
     - uint32_t id_
      * A unique identifier for the job type, used for efficient lookup and management
-
-    - uint32_t priority_
-     * The priority level of the job type, which can be used to determine the order of job execution
-
-    - uint32_t cost_
-     * An estimate of the computational cost
 }
 
 class JobState
@@ -57,14 +42,18 @@ class JobState
     + bool WaitForCompletion() const
      * @brief : Wait for the job to be completed and return the completion status
      * @return bool : True if the job is completed, false otherwise
+
+    - void NotifyCompletion()
+     * @brief : Notify any waiting threads that the job has been completed
+     * @note : This method should be called by the worker thread
     ---
     - std::weak_ptr<bool> is_completed_
      * A weak pointer to a boolean that indicates whether the job has been completed
 
-    - std::condition_variable& condition_
+    - std::condition_variable cv_
      * A reference to a condition variable that can be used to wait for the job's completion status to change
 
-    - std::mutex& mutex_
+    - std::mutex mutex_
      * A mutex to protect access to the job's completion status and condition variable
 }
 JobState ..> Job
@@ -100,6 +89,7 @@ class Job
      * A shared pointer to a boolean that indicates whether the job has been completed
 }
 Job *-- JobType
+Job *-- JobState
 
 class WorkerThread
 {
