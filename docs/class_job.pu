@@ -27,11 +27,9 @@ class JobType
 
 class JobState
 {
-    + JobState(std::weak_ptr<bool> is_completed, std::condition_variable& condition, std::mutex& mutex)
-     * @brief : Construct a new JobState object with the specified job type and completion status
-     * @param is_completed : A weak pointer to a boolean that indicates whether the job has been completed
-     * @param condition : A reference to a condition variable
-     * @param mutex : A reference to a mutex to protect access to the job's completion status and condition variable
+    + JobState(std::shared_future<void> completion)
+     * @brief : Construct a new JobState object with the specified completion future
+     * @param completion : A shared future that allows multiple threads to wait for the job's completion
 
     + ~JobState() = default
 
@@ -42,19 +40,9 @@ class JobState
     + bool WaitForCompletion() const
      * @brief : Wait for the job to be completed and return the completion status
      * @return bool : True if the job is completed, false otherwise
-
-    - void NotifyCompletion()
-     * @brief : Notify any waiting threads that the job has been completed
-     * @note : This method should be called by the worker thread
     ---
-    - std::weak_ptr<bool> is_completed_
-     * A weak pointer to a boolean that indicates whether the job has been completed
-
-    - std::condition_variable cv_
-     * A reference to a condition variable that can be used to wait for the job's completion status to change
-
-    - std::mutex mutex_
-     * A mutex to protect access to the job's completion status and condition variable
+    - std::shared_future<void> completion_
+     * A shared future that allows multiple threads to wait for the job's completion
 }
 JobState ..> Job
 
@@ -79,21 +67,25 @@ class Job
      * @brief : Execute the job's function and update the completion status
      * @note : This method should be called by the worker thread that is processing the job
     ---
-    - JobType type_
-     * The type of the job, which can be used for categorization and scheduling
-
     - std::function<void()> job_fun_
      * The function that represents the work to be done by the job
 
-    - std::shared_ptr<bool> is_completed_
-     * A shared pointer to a boolean that indicates whether the job has been completed
+    - std::shared_ptr<std::promise<void>> promise_
+     * A promise that will be fulfilled when the job is completed, allowing other threads to wait for its completion
+
+    - mutable std::shared_future<void> shared_
+     * A shared future that allows multiple threads to wait for the job's completion
+
+    - JobType type_
+     * The type of the job, which can be used for categorization and scheduling
+
 }
 Job *-- JobType
 Job *-- JobState
 
 class WorkerThread
 {
-    + WorkerThread()
+    + WorkerThread(std::thread thread, uint32_t id)
      * @brief : Create a new worker thread that will process jobs from the job queue
     
     + ~WorkerThread()
@@ -103,21 +95,9 @@ class WorkerThread
      * @brief : Get the unique identifier of the worker thread
      * @return uint32_t : The unique identifier of the worker thread
 
-    + JobState DispatchJob(Job job)
-     * @brief : Dispatch a job to be executed by the worker thread
-     * @param job : The job to be executed
-     * @return JobState : The state of the dispatched job
-
-    + bool IsIdle() const
-     * @brief : Check if the worker thread is currently idle (not processing a job)
-     * @return bool : True if the worker thread is idle, false otherwise
-
     + JobType GetWorkingJobType() const
      * @brief : Get the type of job that the worker thread is currently processing
      * @return JobType : The type of job being processed, or a default value if the worker thread is idle
-
-    - void Work()
-     * @brief : The main loop of the worker thread that continuously checks for new jobs to process
     ---
     - uint32_t id_
      * A unique identifier for the worker thread, used for tracking and management
@@ -125,14 +105,14 @@ class WorkerThread
     - std::thread thread_
      * The actual thread object that runs the worker loop
 
-    - std::mutex mutex_
-     * A mutex to protect access to the worker thread's state
-
     - std::condition_variable condition_
      * A condition variable to signal the worker thread when a new job is dispatched
 
-    - JobType current_job_type_
-     * The type of job currently being processed by the worker thread, or a default value if idle
+    - std::atomic<bool> stop_signal_
+     * An atomic flag to signal the worker thread to stop processing and exit
+
+    - std::atomic<JobType> current_job_type_
+     * An atomic variable that holds the type of job currently being processed by the worker thread
 }
 WorkerThread ..> Job
 WorkerThread ..> JobState
@@ -187,6 +167,11 @@ class WorkerThreadProvider
 }
 WorkerThreadProvider *-- WorkerThread
 
+class JobQueue
+{
+
+}
+
 class JobScheduler
 {
     + JobScheduler(WorkerThreadProvider& worker_thread_provider)
@@ -199,8 +184,11 @@ class JobScheduler
      * @param job : The job to be scheduled
      * @return JobState : The state of the scheduled job (e.g., pending, running, completed)
     ---
-    - WorkerThreadProvider& worker_thread_provider_
-     * A reference to the worker thread provider that manages the worker threads used for executing jobs
+    - std::vector<thread> worker_threads_
+     * A vector that holds the actual thread objects for the worker threads
+
+    - JobQueue job_queue_
+     * A queue that holds jobs waiting to be executed by worker threads
 }
 JobScheduler *-- WorkerThreadProvider
 
