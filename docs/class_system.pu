@@ -4,14 +4,12 @@ abstract class Port
 {
     + virtual ~Port() = default
 
-    template<typename T>
-    + T* ConvertTo() const
+    + template<typename T> T* ConvertTo() const
      * @brief : Convert the write port to a specific type of system port
      * @param T : The type of system port to convert to
      * @return T* : A pointer to the converted system port, or nullptr if the conversion fails
 
-    template<typename T>
-    + const T* ConvertTo() const
+    + template<typename T> const T* ConvertTo() const
      * @brief : Convert the read port to a specific type of system port
      * @param T : The type of system port to convert to
      * @return const T* : A pointer to the converted system port, or nullptr if the conversion fails
@@ -22,6 +20,7 @@ class UserWritePort
 {
     + UserWritePort() = default
     + ~UserWritePort() override = default
+    ---
 }
 UserWritePort --|> Port
 note top of UserWritePort
@@ -33,6 +32,7 @@ class UserReadPort
 {
     + UserReadPort() = default
     + ~UserReadPort() override = default
+    ---
 }
 UserReadPort --|> Port
 note top of UserReadPort
@@ -120,6 +120,7 @@ class UserTask
      * @param info : The information about the task
 
     + ~UserTask() override = default
+    ---
 }
 UserTask --|> Task
 note top of UserTask
@@ -274,7 +275,7 @@ System *-- Port
 
 class SystemBase
 {
-    + ~ virtual SystemBase() = default
+    + virtual SystemBase() = default
 
     {static} + uint32_t GetID()
      * @brief : Get the unique idedntifier of the system
