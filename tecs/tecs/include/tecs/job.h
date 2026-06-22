@@ -366,6 +366,12 @@ public:
      */
     std::vector<JobExecutionInfo> GetRunningJobInfos() const;
 
+    /**
+     * @brief : Get a list of all worker thread information, including their current job types
+     * @return std::vector<JobExecutionInfo> : A vector of JobExecutionInfo objects representing the worker threads and their current job types
+     */
+    std::vector<JobExecutionInfo> GetThreadInfos() const;
+
 private:
     // A reference to the vector of worker threads, used to track the jobs currently being processed
     const std::vector<std::unique_ptr<WorkerThread>>& worker_threads_;

@@ -91,7 +91,7 @@ TEST(tecs, schedule_multi_job)
     EXPECT_EQ(result3, EXPECTED_RESULT3);    
 }
 
-TEST(tecs, job_track)
+TEST(tecs, job_track_running)
 {
     // Create job scheduler
     tecs::JobScheduler job_scheduler;
@@ -141,6 +141,63 @@ TEST(tecs, job_track)
         {
             std::cout << "No jobs are currently running." << std::endl;
         }
+
+        // Wait for all jobs to complete
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    // Output the final status of each job
+    std::cout << "Final status - Job 1 completed: " << job_state1.IsCompleted();
+    std::cout << ", Job 2 completed: " << job_state2.IsCompleted() << std::endl;
+
+    // Verify that the result variables have been set to the expected values
+    EXPECT_EQ(result1, EXPECTED_RESULT1);
+    EXPECT_EQ(result2, EXPECTED_RESULT2);
+}
+
+TEST(tecs, job_track_all)
+{
+    // Create job scheduler
+    tecs::JobScheduler job_scheduler;
+
+    // Create job tracker
+    tecs::JobTracker job_tracker(job_scheduler.GetWorkerThreads());
+
+    // Create first job that sets a result variable to a specific value
+    int result1 = 0;
+    const int EXPECTED_RESULT1 = 7;
+    tecs::Job job1(tecs::JobType("TestJob1", 1), [&result1, EXPECTED_RESULT1]()
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Simulate some delay
+        result1 = EXPECTED_RESULT1;
+    });
+
+    // Create second job that sets a different result variable to a specific value
+    int result2 = 0;
+    const int EXPECTED_RESULT2 = 11;
+    tecs::Job job2(tecs::JobType("TestJob2", 2), [&result2, EXPECTED_RESULT2]()
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(300)); // Simulate some delay
+        result2 = EXPECTED_RESULT2;
+    });
+
+    // Schedule the jobs
+    tecs::JobState job_state1 = job_scheduler.ScheduleJob(std::move(job1));
+    tecs::JobState job_state2 = job_scheduler.ScheduleJob(std::move(job2));
+
+    while (!job_state1.IsCompleted() || !job_state2.IsCompleted())
+    {
+        // Get the thread information for all worker threads
+        std::vector<tecs::JobExecutionInfo> thread_infos = job_tracker.GetThreadInfos();
+
+        // Output the thread information
+        std::cout << "Worker thread information:" << std::endl;
+        for (const auto& thread_info : thread_infos)
+        {
+            std::cout << " [Worker Thread ID: " << thread_info.GetWorkerThreadID();
+            std::cout << ", Current Job Type: " << thread_info.GetJobType().GetName() << "]" << std::endl;
+        }
+        std::cout << std::endl << std::endl;
 
         // Wait for all jobs to complete
         std::this_thread::sleep_for(std::chrono::milliseconds(100));

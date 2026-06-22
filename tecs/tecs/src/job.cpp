@@ -283,4 +283,18 @@ std::vector<JobExecutionInfo> JobTracker::GetRunningJobInfos() const
     return running_jobs; // Return the vector of currently running job execution information
 }
 
+std::vector<JobExecutionInfo> JobTracker::GetThreadInfos() const
+{
+    std::vector<JobExecutionInfo> thread_infos;
+
+    // Iterate through the worker threads to gather information about their current job types
+    for (const auto& worker_thread : worker_threads_)
+    {
+        JobType current_job_type = worker_thread->GetWorkingJobType();
+        thread_infos.emplace_back(worker_thread->GetID(), current_job_type);
+    }
+
+    return thread_infos; // Return the vector of worker thread information, including their current job types
+}
+
 } // namespace tecs

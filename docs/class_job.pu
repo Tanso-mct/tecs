@@ -255,6 +255,10 @@ class JobTracker
     + std::vector<JobExecutionInfo> GetRunningJobInfos() const
      * @brief : Get a list of all currently running job execution information
      * @return std::vector<JobExecutionInfo> : A vector ofoJobExecutionInfo objects representing the currently running jobs
+
+    + std::vector<JobExecutionInfo> GetThreadInfos() const
+     * @brief : Get a list of all worker thread information, including their current job types
+     * @return std::vector<JobExecutionInfo> : A vector of JobExecutionInfo objects representing the worker threads and their current job types
     ---
     - const std::vector<std::unique_ptr<WorkerThread>>& worker_threads_
      * A reference to the vector of worker threads, used to track the jobs currently being processed
