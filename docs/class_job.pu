@@ -44,7 +44,6 @@ class JobState
     - std::shared_future<void> completion_
      * A shared future that allows multiple threads to wait for the job's completion
 }
-JobState ..> Job
 
 class Job
 {
@@ -130,7 +129,7 @@ class WorkerThread
      * @brief : Get the type of job that the worker thread is currently processing
      * @return JobType : The type of job being processed, or a default value if the worker thread is idle
     ---
-    - {static} - next_id_
+    {static} - uint32_t next_id_
      * A static variable that keeps track of the next unique identifier to assign to a new worker thread
 
     - uint32_t id_
@@ -150,9 +149,7 @@ WorkerThread *-- JobType
 
 class JobQueue
 {
-    + JobQueue()
-     * @brief : Construct a new JobQueue object that manages a queue of jobs to be executed by worker threads
-
+    + JobQueue() = default
     + ~JobQueue() = default
 
     + void PushJob(Job job)
@@ -167,17 +164,18 @@ class JobQueue
      * @brief : Check if the job queue is empty
      * @return bool : True if the queue is empty, false otherwise
     ---
-    std::queue<Job> job_queue_
+    + std::queue<Job> job_queue_
      * A queue that holds jobs waiting to be executed by worker threads
 
-    + std::mutex mutex_
+    + mutable std::mutex mutex_
      * A mutex to protect access to the job queue
 }
+JobQueue *-- Job
 
 class JobScheduler
 {
-    + JobScheduler(WorkerThreadProvider& worker_thread_provider)
-     * @brief : Construct a new JobScheduler object with the specified worker thread provider
+    + JobScheduler()
+     * @brief : Construct a new JobScheduler object
 
     + ~JobScheduler()
 
@@ -196,7 +194,8 @@ class JobScheduler
     - JobQueue job_queue_
      * A queue that holds jobs waiting to be executed by worker threads
 }
-JobScheduler *-- WorkerThreadProvider
+JobScheduler *-- WorkerThread
+JobScheduler *-- JobQueue
 
 class JobExecutionInfo
 {
@@ -221,6 +220,7 @@ class JobExecutionInfo
     - JobType job_type_
      *  The type of the job being processed
 }
+JobExecutionInfo *-- JobType
 
 class JobTracker
 {
@@ -231,12 +231,12 @@ class JobTracker
 
     + std::vector<JobExecutionInfo> GetRunningJobInfos() const
      * @brief : Get a list of all currently running job execution information
-     * @return std::vector<JobExecutionInfo> : A vector of JobExecutionInfo objects representing the currently running jobs
+     * @return std::vectoroJobExecutionInfo> : A vector ofoJobExecutionInfo objects representing the currently running jobs
     ---
     - const std::vector<WorkerThread>& worker_threads_
      * A reference to the vector of worker threads, used to track the jobs currently being processed
 }
-JobTracker ..> WorkerThreadProvider
+JobTracker *-- WorkerThread
 JobTracker ..> JobExecutionInfo
 
 

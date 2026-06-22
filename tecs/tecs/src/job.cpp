@@ -6,7 +6,7 @@ namespace tecs
 
 JobType::JobType(std::string name, uint32_t id) :
     name_(std::move(name)),
-    id_(id),
+    id_(id)
 {
 }
 
@@ -20,34 +20,23 @@ uint32_t JobType::GetID() const
     return id_;
 }
 
-JobState::JobState(std::atomic<bool>* is_completed, std::condition_variable* condition, std::mutex* mutex) :
-    is_completed_(is_completed),
-    condition_(condition),
-    mutex_(mutex)
+JobState::JobState(std::shared_future<void> completion) :
+    completion_(std::move(completion))
 {
-}
-
-JobState::Initialize(std::atomic<bool>* is_completed, std::condition_variable* condition, std::mutex* mutex)
-{
-    is_completed_ = is_completed;
-    condition_ = condition;
-    mutex_ = mutex;
+    assert(completion_.valid() && "Completion future must be valid");
 }
 
 bool JobState::IsCompleted() const
 {
-    assert(is_completed_ != nullptr && "is_completed_ must not be nullptr");
-
-    return is_completed_->load();
+    assert(completion_.valid() && "Completion future must be valid");
+    return completion_.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
 }
 
 bool JobState::WaitForCompletion() const
 {
-    assert(is_completed_ != nullptr && "is_completed_ must not be nullptr");
-    assert(condition_ != nullptr && "condition_ must not be nullptr");
-
-    std::unique_lock<std::mutex> lock(*mutex_);
-    condition_->wait(lock, [this]() { return IsCompleted(); });
+    assert(completion_.valid() && "Completion future must be valid");
+    completion_.wait();
+    return IsCompleted();
 }
 
 Job::Job(JobType type, std::function<void()> job_func) :
@@ -56,214 +45,144 @@ Job::Job(JobType type, std::function<void()> job_func) :
 {
 }
 
+JobState Job::GetState() const
+{
+    // Ensure the shared future is valid before returning the JobState
+    if (!shared_.valid()) 
+        shared_ = promise_->get_future().share(); // Create a shared future from the promise
+
+    return JobState(shared_);
+}
+
 JobType Job::GetType() const
 {
     return type_;
 }
 
-std::weak_ptr<JobState> Job::GetState() const
-{
-    return state_;
-}
-
 void Job::Execute()
 {
     assert(job_fun_ != nullptr && "Job function must not be nullptr");
-    job_fun_();
+    job_fun_(); // Execute the job's function
+    promise_->set_value(); // Fulfill the promise to signal job completion
 }
 
-WorkerThread::WorkerThread() :
-    current_job_(JobType("Idle", 0), [](){}), // Default idle job
-    current_job_completed_(true) // No job is being processed, so it's considered completed
+ThreadController::ThreadController() :
+    stop_signal_(false)
 {
-    // Start the worker thread and run the Work method
-    thread_ = std::thread(&WorkerThread::Work, this);
+}
+
+bool ThreadController::HasStopSignal() const
+{
+    return stop_signal_.load();
+}
+
+void ThreadController::SignalStop()
+{
+    stop_signal_.store(true);
+    Notify(); // Notify the condition variable to wake up the thread
+}
+
+void ThreadController::Wait(std::function<void()> predicate)
+{
+    std::unique_lock<std::mutex> lock(mutex_);
+    condition_.wait(lock, predicate); // Wait for the condition to be met
+}
+
+void ThreadController::Notify()
+{
+    condition_.notify_one(); // Notify the condition variable to wake up the thread
+}
+
+uint32_t WorkerThread::next_id_ = 0; // Initialize the static variable for unique thread IDs
+
+WorkerThread::WorkerThread(std::function<void(ThreadController&, std::atomic<JobType>&)> worker_loop_func) :
+    id_(next_id_++),
+    current_job_type_(JobType("Idle", 0)),
+    thread_controller_()
+{
+    // Start the worker thread and run the provided worker loop function
+    thread_ = std::thread([this, worker_loop_func]()
+    {
+        worker_loop_func(thread_controller_, current_job_type_);
+    });
 }
 
 WorkerThread::~WorkerThread()
 {
-    // Signal the worker thread to stop
-    stop_flag_.store(true);
-    condition_.notify_all();
-
-    // Join the worker thread
+    thread_controller_.SignalStop(); // Signal the worker thread to stop
     if (thread_.joinable())
-        thread_.join();
+        thread_.join(); // Join the worker thread to ensure it has finished execution
 }
 
 uint32_t WorkerThread::GetID() const
 {
-    return id_;
-}
-
-std::weak_ptr<JobState> WorkerThread::DispatchJob(Job job)
-{
-    // Check if the worker thread is currently idle
-    assert(IsIdle() && "Worker thread must be idle to dispatch a new job");
-
-    std::weak_ptr<JobState> job_state;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        // Set the current job and mark it as not completed
-        current_job_ = std::move(job);
-        current_job_completed_.store(false);
-
-        // Get state of the job
-        job_state = current_job_.GetState();
-        assert(!job_state.expired() && "Job state must not be expired");
-
-        // Initialize the job state
-        std::shared_ptr<JobState> shared_job_state = job_state.lock();
-        assert(shared_job_state != nullptr && "Shared job state must not be nullptr");
-        shared_job_state->Initialize(&current_job_completed_, &condition_, &mutex_);
-
-        // Notify the worker thread that a new job has been dispatched
-        condition_.notify_one();
-    }
-
-    return job_state;
-}
-
-bool WorkerThread::IsIdle() const
-{
-    return current_job_completed_.load();
+    return id_; // Return the unique identifier of the worker thread
 }
 
 JobType WorkerThread::GetWorkingJobType() const
 {
-    return current_job_.GetType();
+    return current_job_type_.load(); // Return the current job type being processed
 }
 
-void WorkerThread::Work()
+void JobQueue::PushJob(Job job)
 {
-    // Continuously process jobs until stop flag is set
-    while (!stop_flag_.load())
+    std::lock_guard<std::mutex> lock(mutex_); // Lock the mutex to protect access to the job queue
+    job_queue_.push(std::move(job)); // Add the job to the queue
+}
+
+Job JobQueue::PopJob()
+{
+    std::lock_guard<std::mutex> lock(mutex_); // Lock the mutex to protect access to the job queue
+    if (job_queue_.empty())
+        return Job(JobType("Invalid", 0), [](){}); // Return a default-constructed job if the queue is empty
+
+    Job job = std::move(job_queue_.front()); // Get the next job from the front of the queue
+    job_queue_.pop(); // Remove the job from the queue
+    return job; // Return the job to be executed
+}
+
+bool JobQueue::IsEmpty() const
+{
+    std::lock_guard<std::mutex> lock(mutex_); // Lock the mutex to protect access to the job queue
+    return job_queue_.empty(); // Check if the job queue is empty
+}
+
+JobScheduler::JobScheduler()
+{
+    // Check the number of hardware threads available and create worker threads accordingly
+    uint32_t num_threads = std::thread::hardware_concurrency();
+
+    // Create worker threads and add them to the worker_threads_ vector
+    for (uint32_t i = 0; i < num_threads; ++i)
     {
+        worker_threads_.emplace_back([this](ThreadController& controller, std::atomic<JobType>& current_job_type)
         {
-            std::unique_lock<std::mutex> lock(mutex_);
-
-            // Wait for a job to be available or for the stop flag to be set
-            condition_.wait(lock, [this]() { return !current_job_completed_.load() || stop_flag_.load(); });
-
-            if (stop_flag_.load())
-                break; // Exit if stop flag is set
-        }
-
-        // Execute the job
-        current_job_.Execute();
-
-        // Mark the job as completed
-        current_job_completed_.store(true);
-    }
-}
-
-uint32_t WorkerThreadProvider::GetCpuCoreCount() const
-{
-    return std::thread::hardware_concurrency();
-}
-
-uint32_t WorkerThreadProvider::GetWorkerThreadCount() const
-{
-    return static_cast<uint32_t>(worker_threads_.size());
-}
-
-bool WorkerThreadProvider::CreateWorkerThread()
-{
-    uint32_t max_threads = GetCpuCoreCount();
-    if (GetWorkerThreadCount() >= max_threads)
-        return false; // Cannot create more worker threads than the number of CPU cores
-
-    worker_threads_.emplace_back();
-
-    // Set the thread is idle by default
-    idle_threads_.push_back(&worker_threads_.back());
-
-    return true;
-}
-
-bool WorkerThreadProvider::CreateWorkerThreads(uint32_t count)
-{
-    uint32_t max_threads = GetCpuCoreCount();
-    if (GetWorkerThreadCount() + count > max_threads)
-        return false; // Cannot create more worker threads than the number of CPU cores
-
-    for (uint32_t i = 0; i < count; ++i)
-    {
-        worker_threads_.emplace_back();
-
-        // Set the thread is idle by default
-        idle_threads_.push_back(&worker_threads_.back());
-    }
-
-    return true;
-}
-
-WorkerThread* WorkerThreadProvider::GetIdleWorkerThread()
-{
-    if (idle_threads_.empty())
-        return nullptr; // No idle worker threads available
-
-    WorkerThread* idle_thread = idle_threads_.back(); // Get the last idle thread
-    idle_threads_.pop_back(); // Remove the thread from the idle list
-
-    running_threads_.push_back(idle_thread); // Add the thread to the running list
-
-    return idle_thread;
-}
-
-std::vector<const WorkerThread*> WorkerThreadProvider::GetIdleWorkerThreads() const
-{
-    std::vector<const WorkerThread*> idle_thread_ptrs;
-    for (const WorkerThread* thread : idle_threads_)
-        idle_thread_ptrs.push_back(thread);
-    return idle_thread_ptrs;
-}
-
-std::vector<const WorkerThread*> WorkerThreadProvider::GetRunningWorkerThreads() const
-{
-    std::vector<const WorkerThread*> running_thread_ptrs;
-    for (const WorkerThread* thread : running_threads_)
-        running_thread_ptrs.push_back(thread);
-    return running_thread_ptrs;
-}
-
-JobScheduler::JobScheduler(WorkerThreadProvider& worker_thread_provider) :
-    worker_thread_provider_(worker_thread_provider)
-{
-    // Create job that dispatches jobs to worker threads
-    Job dispatch_job(JobType("DispatchJob", 0), [this]()
-    {
-        while (true)
-        {
-            std::unique_lock<std::mutex> lock(mutex_);
-
-            // Wait for a job to be available in the queue
-            condition_.wait(lock, [this]() { return !job_queue_.empty(); });
-
-            // Get the next job from the queue
-            Job job = std::move(job_queue_.front());
-
-            // Remove the job from the queue
-            job_queue_.pop();
-
-            // Wait for an idle worker thread to be available
-            WorkerThread* worker_thread = nullptr;
-            condition_.wait(lock, [this, &worker_thread]() 
+            while (!controller.HasStopSignal())
             {
-                worker_thread = worker_thread_provider_.GetIdleWorkerThread();
-                return worker_thread != nullptr;
-            });
+                // Create predicate function to check for available jobs or stop signal
+                auto predicate = [this, &controller]() { return !job_queue_.IsEmpty() || controller.HasStopSignal(); };
 
-            // Dispatch the job to the worker thread
-            worker_thread->DispatchJob(std::move(job));
+                // Wait for a job to be available or for the stop signal
+                controller.Wait(predicate);
 
-            
-        }
-    });
-    
+                if (controller.HasStopSignal())
+                    break; // Exit the loop if the stop signal is set
+
+                // Pop a job from the queue and execute it
+                Job job = job_queue_.PopJob();
+
+                // Store the current job type being processed by the worker thread
+                current_job_type.store(job.GetType());
+
+                // Execute the job
+                job.Execute();
+
+                // Reset the current job type to idle after execution
+                current_job_type.store(JobType("Idle", 0));
+            }
+        });
+    }
 }
-
 
 
 // void JobState::MarkCompleted()
