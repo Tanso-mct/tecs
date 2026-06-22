@@ -10,104 +10,147 @@
 
 TEST(tecs, schedule_job)
 {
-    // Get cpu core count
-    uint32_t num_cores = std::thread::hardware_concurrency();
-    EXPECT_NE(num_cores, 0);
-
     // Create job scheduler
-    tecs::JobScheduler job_scheduler(num_cores);
+    tecs::JobScheduler job_scheduler;
 
-    // Result variable
+    // Create a job that sets a result variable to a specific value
     int result = 0;
-    const int kExpectedResult = 100;
-
-    // Create job
-    tecs::Job job([&result, kExpectedResult]()
+    const int EXPECTED_RESULT = 7;
+    tecs::Job job(tecs::JobType("TestJob", 1), [&result, EXPECTED_RESULT]()
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Simulate some delay
-        result = kExpectedResult;
+        std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Simulate some delay
+        result = EXPECTED_RESULT;
     });
 
-    // Start time measurement
-    auto start_time = std::chrono::high_resolution_clock::now();
+    // Schedule the job
+    tecs::JobState job_state = job_scheduler.ScheduleJob(std::move(job));
 
-    // Schedule job
-    tecs::JobHandle job_handle = job_scheduler.ScheduleJob(job);
+    // Wait for the job to complete
+    job_state.WaitForCompletion();
 
-    // Wait for job to complete
-    job_handle.Wait();
-
-    // Verify result
-    EXPECT_EQ(result, kExpectedResult);
-
-    // End time measurement
-    auto end_time = std::chrono::high_resolution_clock::now();
-
-    // Calculate duration
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    std::cout << "Job completed in " << duration << " milliseconds." << std::endl;
+    // Verify that the result variable has been set to the expected value
+    EXPECT_EQ(result, EXPECTED_RESULT);
 }
 
-TEST(tecs, schedule_multiple_jobs)
+TEST(tecs, schedule_multi_job)
 {
-    // Get cpu core count
-    uint32_t num_cores = std::thread::hardware_concurrency();
-    EXPECT_NE(num_cores, 0);
-
     // Create job scheduler
-    tecs::JobScheduler job_scheduler(num_cores);
+    tecs::JobScheduler job_scheduler;
 
-    size_t num_jobs = 3;
-
-    // Result variable
-    int result_1 = 0;
-    int result_2 = 0;
-    int result_3 = 0;
-    const int kExpectedResult = 100;
-
-    // Create job 1
-    tecs::Job job([&result_1, kExpectedResult]()
+    // Create first job that sets a result variable to a specific value
+    int result1 = 0;
+    const int EXPECTED_RESULT1 = 7;
+    tecs::Job job1(tecs::JobType("TestJob1", 1), [&result1, EXPECTED_RESULT1]()
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Simulate some delay
-        result_1 = kExpectedResult;
+        std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Simulate some delay
+        result1 = EXPECTED_RESULT1;
     });
 
-    // Create job 2
-    tecs::Job job2([&result_2, kExpectedResult]()
+    // Create second job that sets a different result variable to a specific value
+    int result2 = 0;
+    const int EXPECTED_RESULT2 = 11;
+    tecs::Job job2(tecs::JobType("TestJob2", 2), [&result2, EXPECTED_RESULT2]()
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Simulate some delay
-        result_2 = kExpectedResult;
+        std::this_thread::sleep_for(std::chrono::milliseconds(300)); // Simulate some delay
+        result2 = EXPECTED_RESULT2;
     });
 
-    // Create job 3
-    tecs::Job job3([&result_3, kExpectedResult]()
+    // Create third job that sets a different result variable to a specific value
+    int result3 = 0;
+    const int EXPECTED_RESULT3 = 13;
+    tecs::Job job3(tecs::JobType("TestJob3", 3), [&result3, EXPECTED_RESULT3]()
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Simulate some delay
-        result_3 = kExpectedResult;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Simulate some delay
+        result3 = EXPECTED_RESULT3;
     });
 
-    // Start time measurement
-    auto start_time = std::chrono::high_resolution_clock::now();
+    // Schedule the jobs
+    tecs::JobState job_state1 = job_scheduler.ScheduleJob(std::move(job1));
+    tecs::JobState job_state2 = job_scheduler.ScheduleJob(std::move(job2));
+    tecs::JobState job_state3 = job_scheduler.ScheduleJob(std::move(job3));
 
-    // Schedule job
-    std::vector<tecs::JobHandle> job_handles;
-    job_handles.push_back(job_scheduler.ScheduleJob(std::move(job)));
-    job_handles.push_back(job_scheduler.ScheduleJob(std::move(job2)));
-    job_handles.push_back(job_scheduler.ScheduleJob(std::move(job3)));
+    while (!job_state1.IsCompleted() || !job_state2.IsCompleted() || !job_state3.IsCompleted())
+    {
+        // Output the current status of each job
+        std::cout << "Job 1 completed: " << job_state1.IsCompleted();
+        std::cout << ", Job 2 completed: " << job_state2.IsCompleted();
+        std::cout << ", Job 3 completed: " << job_state3.IsCompleted() << std::endl;
 
-    // Wait for jobs to complete
-    for (auto& handle : job_handles)
-        handle.Wait();
+        // Wait for all jobs to complete
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
 
-    // Verify results
-    EXPECT_EQ(result_1, kExpectedResult);
-    EXPECT_EQ(result_2, kExpectedResult);
-    EXPECT_EQ(result_3, kExpectedResult);
+    // Output the final status of each job
+    std::cout << "Final status - Job 1 completed: " << job_state1.IsCompleted();
+    std::cout << ", Job 2 completed: " << job_state2.IsCompleted();
+    std::cout << ", Job 3 completed: " << job_state3.IsCompleted() << std::endl;
 
-    // End time measurement
-    auto end_time = std::chrono::high_resolution_clock::now();
+    // Verify that the result variables have been set to the expected values
+    EXPECT_EQ(result1, EXPECTED_RESULT1);
+    EXPECT_EQ(result2, EXPECTED_RESULT2);
+    EXPECT_EQ(result3, EXPECTED_RESULT3);    
+}
 
-    // Calculate duration
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-    std::cout << "All jobs completed in " << duration << " milliseconds." << std::endl;
+TEST(tecs, job_track)
+{
+    // Create job scheduler
+    tecs::JobScheduler job_scheduler;
+
+    // Create job tracker
+    tecs::JobTracker job_tracker(job_scheduler.GetWorkerThreads());
+
+    // Create first job that sets a result variable to a specific value
+    int result1 = 0;
+    const int EXPECTED_RESULT1 = 7;
+    tecs::Job job1(tecs::JobType("TestJob1", 1), [&result1, EXPECTED_RESULT1]()
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Simulate some delay
+        result1 = EXPECTED_RESULT1;
+    });
+
+    // Create second job that sets a different result variable to a specific value
+    int result2 = 0;
+    const int EXPECTED_RESULT2 = 11;
+    tecs::Job job2(tecs::JobType("TestJob2", 2), [&result2, EXPECTED_RESULT2]()
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(300)); // Simulate some delay
+        result2 = EXPECTED_RESULT2;
+    });
+
+    // Schedule the jobs
+    tecs::JobState job_state1 = job_scheduler.ScheduleJob(std::move(job1));
+    tecs::JobState job_state2 = job_scheduler.ScheduleJob(std::move(job2));
+
+    while (!job_state1.IsCompleted() || !job_state2.IsCompleted())
+    {
+        // Get the currently running job execution information
+        std::vector<tecs::JobExecutionInfo> running_jobs = job_tracker.GetRunningJobInfos();
+
+        // Output the currently running jobs
+        if (!running_jobs.empty())
+        {
+            std::cout << "Currently running jobs:";
+            for (const auto& job_info : running_jobs)
+            {
+                std::cout << " [Worker Thread ID: " << job_info.GetWorkerThreadID();
+                std::cout << ", Job Type: " << job_info.GetJobType().GetName() << "]";
+            }
+            std::cout << std::endl;
+        }
+        else
+        {
+            std::cout << "No jobs are currently running." << std::endl;
+        }
+
+        // Wait for all jobs to complete
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    // Output the final status of each job
+    std::cout << "Final status - Job 1 completed: " << job_state1.IsCompleted();
+    std::cout << ", Job 2 completed: " << job_state2.IsCompleted() << std::endl;
+
+    // Verify that the result variables have been set to the expected values
+    EXPECT_EQ(result1, EXPECTED_RESULT1);
+    EXPECT_EQ(result2, EXPECTED_RESULT2);
 }

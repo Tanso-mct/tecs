@@ -10,14 +10,53 @@ JobType::JobType(std::string name, uint32_t id) :
 {
 }
 
+JobType::JobType() :
+    name_(DEFAULT_JOB_TYPE_NAME),
+    id_(DEFAULT_JOB_TYPE_ID)
+{
+}
+
+JobType::JobType(const JobType& other)
+{
+    std::lock_guard<std::mutex> lock(other.mutex_); // Lock the mutex of the other JobType to safely copy its data
+    name_ = other.name_; // Copy the name from the other JobType
+    id_ = other.id_; // Copy the ID from the other JobType
+}
+
+bool JobType::operator==(const JobType& other) const
+{
+    return (name_ == other.name_) && (id_ == other.id_);
+}
+
+bool JobType::operator!=(const JobType& other) const
+{
+    return !(*this == other);
+}
+
 std::string_view JobType::GetName() const
 {
+    std::lock_guard<std::mutex> lock(mutex_);
     return name_;
 }
 
 uint32_t JobType::GetID() const
 {
+    std::lock_guard<std::mutex> lock(mutex_);
     return id_;
+}
+
+void JobType::Update(std::string name, uint32_t id)
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    name_ = std::move(name); // Update the name of the job type
+    id_ = id; // Update the unique identifier of the job type
+}
+
+void JobType::Reset()
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    name_ = DEFAULT_JOB_TYPE_NAME;
+    id_ = DEFAULT_JOB_TYPE_ID;
 }
 
 JobState::JobState(std::shared_future<void> completion) :
@@ -43,14 +82,12 @@ Job::Job(JobType type, std::function<void()> job_func) :
     type_(std::move(type)),
     job_fun_(std::move(job_func))
 {
+    promise_ = std::make_shared<std::promise<void>>(); // Create a promise for job completion
+    shared_ = promise_->get_future().share(); // Create a shared future from the promise
 }
 
 JobState Job::GetState() const
 {
-    // Ensure the shared future is valid before returning the JobState
-    if (!shared_.valid()) 
-        shared_ = promise_->get_future().share(); // Create a shared future from the promise
-
     return JobState(shared_);
 }
 
@@ -82,7 +119,7 @@ void ThreadController::SignalStop()
     Notify(); // Notify the condition variable to wake up the thread
 }
 
-void ThreadController::Wait(std::function<void()> predicate)
+void ThreadController::Wait(std::function<bool()> predicate)
 {
     std::unique_lock<std::mutex> lock(mutex_);
     condition_.wait(lock, predicate); // Wait for the condition to be met
@@ -95,9 +132,9 @@ void ThreadController::Notify()
 
 uint32_t WorkerThread::next_id_ = 0; // Initialize the static variable for unique thread IDs
 
-WorkerThread::WorkerThread(std::function<void(ThreadController&, std::atomic<JobType>&)> worker_loop_func) :
+WorkerThread::WorkerThread(std::function<void(ThreadController&, JobType&)> worker_loop_func) :
     id_(next_id_++),
-    current_job_type_(JobType("Idle", 0)),
+    current_job_type_(JobType()),
     thread_controller_()
 {
     // Start the worker thread and run the provided worker loop function
@@ -121,7 +158,7 @@ uint32_t WorkerThread::GetID() const
 
 JobType WorkerThread::GetWorkingJobType() const
 {
-    return current_job_type_.load(); // Return the current job type being processed
+    return current_job_type_;
 }
 
 void JobQueue::PushJob(Job job)
@@ -134,7 +171,7 @@ Job JobQueue::PopJob()
 {
     std::lock_guard<std::mutex> lock(mutex_); // Lock the mutex to protect access to the job queue
     if (job_queue_.empty())
-        return Job(JobType("Invalid", 0), [](){}); // Return a default-constructed job if the queue is empty
+        return Job(JobType(), [](){}); // Return a default-constructed job if the queue is empty
 
     Job job = std::move(job_queue_.front()); // Get the next job from the front of the queue
     job_queue_.pop(); // Remove the job from the queue
@@ -155,147 +192,95 @@ JobScheduler::JobScheduler()
     // Create worker threads and add them to the worker_threads_ vector
     for (uint32_t i = 0; i < num_threads; ++i)
     {
-        worker_threads_.emplace_back([this](ThreadController& controller, std::atomic<JobType>& current_job_type)
-        {
-            while (!controller.HasStopSignal())
+        worker_threads_.emplace_back(std::make_unique<WorkerThread>(
+            [this](ThreadController& controller, JobType& current_job_type)
             {
-                // Create predicate function to check for available jobs or stop signal
-                auto predicate = [this, &controller]() { return !job_queue_.IsEmpty() || controller.HasStopSignal(); };
+                while (!controller.HasStopSignal())
+                {
+                    // Create predicate function to check for available jobs or stop signal
+                    auto predicate 
+                        = [this, &controller]() { return !job_queue_.IsEmpty() || controller.HasStopSignal(); };
 
-                // Wait for a job to be available or for the stop signal
-                controller.Wait(predicate);
+                    // Wait for a job to be available or for the stop signal
+                    controller.Wait(predicate);
 
-                if (controller.HasStopSignal())
-                    break; // Exit the loop if the stop signal is set
+                    if (controller.HasStopSignal())
+                        break; // Exit the loop if the stop signal is set
 
-                // Pop a job from the queue and execute it
-                Job job = job_queue_.PopJob();
+                    // Pop a job from the queue and execute it
+                    Job job = job_queue_.PopJob();
 
-                // Store the current job type being processed by the worker thread
-                current_job_type.store(job.GetType());
+                    // Store the current job type being processed by the worker thread
+                    current_job_type.Update(job.GetType().GetName().data(), job.GetType().GetID());
 
-                // Execute the job
-                job.Execute();
+                    // Execute the job
+                    job.Execute();
 
-                // Reset the current job type to idle after execution
-                current_job_type.store(JobType("Idle", 0));
-            }
-        });
+                    // Reset the current job type to idle after execution
+                    current_job_type.Reset();
+                }
+            }));
     }
 }
 
+JobScheduler::~JobScheduler()
+{
+    // Clear the vector of worker threads, which will invoke their destructors
+    worker_threads_.clear();
+}
 
-// void JobState::MarkCompleted()
-// {
-//     {
-//         std::lock_guard<std::mutex> lock(mutex_);
-//         completed_.store(true);
-//     }
+JobState JobScheduler::ScheduleJob(Job job)
+{
+    // Get the state of the job before scheduling it
+    JobState job_state = job.GetState();
 
-//     // Notify all waiting threads
-//     cv_.notify_all();
-// }
+    // Push the job to the job queue for execution by worker threads
+    job_queue_.PushJob(std::move(job));
 
-// JobHandle::JobHandle(std::shared_ptr<JobState> state) : 
-//     state_(state)
-// {
-// }
+    return job_state;
+}
 
-// void JobHandle::Wait()
-// {
-//     assert(state_ != nullptr && "JobState must not be nullptr");
+const std::vector<std::unique_ptr<WorkerThread>>& JobScheduler::GetWorkerThreads() const
+{
+    return worker_threads_; // Return a reference to the vector of worker threads
+}
 
-//     std::unique_lock<std::mutex> lock(state_->mutex_);
-//     state_->cv_.wait(lock, [this]() { return state_->completed_.load(); });
-// }
+JobExecutionInfo::JobExecutionInfo(uint32_t worker_thread_id, JobType job_type) :
+    worker_thread_id_(worker_thread_id),
+    job_type_(std::move(job_type))
+{
+}
 
-// Job::Job(JobFunc func)
-//     : func_(std::move(func))
-// {
-// }
+uint32_t JobExecutionInfo::GetWorkerThreadID() const
+{
+    return worker_thread_id_; // Return the ID of the worker thread processing the job
+}
 
-// void Job::Execute()
-// {
-//     assert(func_ != nullptr && "Job function must not be nullptr");
-//     func_();
-// }
+JobType JobExecutionInfo::GetJobType() const
+{
+    return job_type_; // Return the type of the job being processed
+}
 
-// JobSet::JobSet(Job job, std::shared_ptr<JobState> state) :
-//     job_(std::move(job)), 
-//     state_(std::move(state))
-// {
-// }
+JobTracker::JobTracker(const std::vector<std::unique_ptr<WorkerThread>>& worker_threads) :
+    worker_threads_(worker_threads)
+{
+}
 
-// JobScheduler::JobScheduler(uint32_t num_worker_threads) :
-//     stop_flag_(false)
-// {
-//     // Start the specified number of worker threads
-//     for (uint32_t i = 0; i < num_worker_threads; ++i)
-//         worker_threads_.emplace_back(&JobScheduler::Work, this);
-// }
+std::vector<JobExecutionInfo> JobTracker::GetRunningJobInfos() const
+{
+    std::vector<JobExecutionInfo> running_jobs;
 
-// JobScheduler::~JobScheduler()
-// {
-//     // Signal the worker thread to stop
-//     stop_flag_.store(true);
-//     cv_.notify_all();
+    // Iterate through the worker threads to gather information about currently running jobs
+    for (const auto& worker_thread : worker_threads_)
+    {
+        JobType current_job_type = worker_thread->GetWorkingJobType();
 
-//     // Join the worker threads
-//     for (std::thread& thread : worker_threads_)
-//         if (thread.joinable())
-//             thread.join();
-// }
+        // Only include worker threads that are currently processing a job (not idle)
+        if (current_job_type != JobType())
+            running_jobs.emplace_back(worker_thread->GetID(), current_job_type);
+    }
 
-// JobHandle JobScheduler::ScheduleJob(Job job)
-// {
-//     // Create a new JobState for the scheduled job
-//     std::shared_ptr<JobState> state = std::make_shared<JobState>();
-
-//     {
-//         // Lock the job queue and condition variable
-//         std::lock_guard<std::mutex> lock(mutex_);
-
-//         // Add the job and its state to the queue
-//         job_queue_.push(std::make_unique<JobSet>(std::move(job), state));
-
-//         // Notify the worker thread of the new job
-//         cv_.notify_one();
-//     }
-
-//     // Return a JobHandle associated with the job's state
-//     return JobHandle(state);
-// }
-
-// void JobScheduler::Work()
-// {
-//     // Continuously process jobs until stop flag is set
-//     while (!stop_flag_.load())
-//     {
-//         // JobSet
-//         std::unique_ptr<JobSet> job_set = nullptr;
-
-//         {
-//             std::unique_lock<std::mutex> lock(mutex_);
-
-//             // Wait for a job to be available or for the stop flag to be set
-//             cv_.wait(lock, [this]() { return !job_queue_.empty() || stop_flag_.load(); });
-
-//             if (stop_flag_.load())
-//                 break; // Exit if stop flag is set
-
-//             // Get job set from the queue
-//             job_set = std::move(job_queue_.front());
-
-//             // Remove the job set from the queue
-//             job_queue_.pop();
-//         }
-
-//         // Execute the job
-//         job_set->job_.Execute();
-
-//         // Mark the job as completed
-//         job_set->state_->MarkCompleted();
-//     }
-// }
+    return running_jobs; // Return the vector of currently running job execution information
+}
 
 } // namespace tecs

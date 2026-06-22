@@ -16,3 +16,4 @@
 #include <unordered_map>
 #include <set>
 #include <initguid.h>
+#include <future>

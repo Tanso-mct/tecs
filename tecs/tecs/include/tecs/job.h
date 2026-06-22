@@ -5,9 +5,19 @@
 #include <string_view>
 #include <memory>
 #include <future>
+#include <functional>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
+#include <thread>
+#include <vector>
+#include <queue>
 
 namespace tecs
 {
+
+constexpr const char* DEFAULT_JOB_TYPE_NAME = "Default";
+const uint32_t DEFAULT_JOB_TYPE_ID = 0;
 
 class JobType
 {
@@ -27,6 +37,26 @@ public:
     ~JobType() = default;
 
     /**
+     * @brief Copy constructor for JobType
+     * @param other The other JobType object to copy from
+     */
+    JobType(const JobType& other);
+
+    /**
+     * @brief : Equality operator to compare two JobType objects
+     * @param other : The other JobType object to compare with
+     * @return bool : True if both JobType objects are equal, false otherwise
+     */
+    bool operator==(const JobType& other) const;
+
+    /**
+     * @brief : Non-equality operator to compare two JobType objects
+     * @param other : The other JobType object to compare with
+     * @return bool : True if both JobType objects are not equal, false otherwise
+     */
+    bool operator!=(const JobType& other) const;
+
+    /**
      * @brief : Get the name of the job type
      * @return std::string_view : The name of the job type
      */
@@ -38,6 +68,18 @@ public:
      */
     uint32_t GetID() const;
 
+    /**
+     * @brief : Update the name and ID of the job type
+     * @param name : The new name of the job type
+     * @param id : The new unique identifier for the job type
+     */
+    void Update(std::string name, uint32_t id);
+
+    /**
+     * @brief Reset the job type to default state
+     */
+    void Reset();
+
 private:
     // The name of the job type, used for identification and categorization
     std::string name_;
@@ -45,6 +87,8 @@ private:
     // A unique identifier for the job type, used for efficient lookup and management
     uint32_t id_;
 
+    // A mutex to protect access to the job type's data, allowing for thread-safe updates
+    mutable std::mutex mutex_;
 };
 
 class JobState
@@ -146,7 +190,7 @@ public:
      * @brief : Wait for a condition to be met, using the provided predicate function
      * @param predicate : A function that returns true when the condition is met, allowing the worker thread to proceed
      */
-    void Wait(std::function<void()> predicate);
+    void Wait(std::function<bool()> predicate);
 
     /**
      * @brief : Notify the condition variable to wake up the thread
@@ -170,8 +214,9 @@ class WorkerThread
 public:
     /**
      * @brief : Create a new worker thread that will process jobs from the job queue
+     * @param worker_loop_func : A function that represents the main loop of the worker thread
      */
-    WorkerThread(std::function<void(ThreadController&, std::atomic<JobType>&)> worker_loop_func);
+    WorkerThread(std::function<void(ThreadController&, JobType&)> worker_loop_func);
 
     /**
      * @brief : Signal the worker thread to stop and join it
@@ -203,8 +248,8 @@ private:
     // A controller that manages the worker thread's execution and stopping behavior
     ThreadController thread_controller_;
 
-    // An atomic variable that holds the type of job currently being processed by the worker thread
-    std::atomic<JobType> current_job_type_;
+    // Job type currently being processed by the worker thread
+    JobType current_job_type_;
 
 };
 
@@ -261,11 +306,11 @@ public:
      * @brief : Get a reference to the vector of worker threads managed by the job scheduler
      * @return const std::vector<WorkerThread>& : A reference to the vector of worker threads
      */
-    const std::vector<WorkerThread>& GetWorkerThreads() const;
+    const std::vector<std::unique_ptr<WorkerThread>>& GetWorkerThreads() const;
 
 private:
     // A vector that holds the worker threads responsible for executing jobs
-    std::vector<WorkerThread> worker_threads_;
+    std::vector<std::unique_ptr<WorkerThread>> worker_threads_;
 
     // A queue that holds jobs waiting to be executed by worker threads
     JobQueue job_queue_;
@@ -311,19 +356,19 @@ public:
     /**
      * @brief : Construct a new JobTracker object with the specified worker threads
      */
-    JobTracker(const std::vector<WorkerThread>& worker_threads);
+    JobTracker(const std::vector<std::unique_ptr<WorkerThread>>& worker_threads);
 
     ~JobTracker() = default;
 
     /**
      * @brief : Get a list of all currently running job execution information
-     * @return std::vectoroJobExecutionInfo> : A vector ofoJobExecutionInfo objects representing the currently running jobs
+     * @return std::vector<JobExecutionInfo> : A vector ofoJobExecutionInfo objects representing the currently running jobs
      */
     std::vector<JobExecutionInfo> GetRunningJobInfos() const;
 
 private:
     // A reference to the vector of worker threads, used to track the jobs currently being processed
-    const std::vector<WorkerThread>& worker_threads_;
+    const std::vector<std::unique_ptr<WorkerThread>>& worker_threads_;
 
 };
 
