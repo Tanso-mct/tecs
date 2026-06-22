@@ -9,9 +9,7 @@ ReflectionField::ReflectionField(std::string_view name, size_t offset) :
 {
 }
 
-Reflection::Reflection(
-    std::byte* instance,
-    std::vector<std::unique_ptr<ReflectionField>> fields) : 
+Reflection::Reflection(std::byte* instance, std::vector<std::unique_ptr<ReflectionField>> fields) : 
     instance_(instance)
 {
     // Ensure instance pointer is not null

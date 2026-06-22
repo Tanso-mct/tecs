@@ -781,6 +781,46 @@ public:
             virtual ~Info() = default;
         };
 
+        class Caller
+        {
+        public:
+            /**
+             * @brief Construct a new Caller object
+             * @param file : The file from which the task was called
+             * @param line : The line number from which the task was called
+             * @param function : The function from which the task was called
+             */
+            Caller(std::string_view file, int line, std::string_view function);
+
+            /**
+             * @brief Destroy the Caller object
+             */
+            ~Caller() = default;
+
+            /**
+             * @brief Get the file from which the task was called
+             * @return std::string_view The file from which the task was called
+             */
+            std::string_view GetFile() const { return file_; }
+
+            /**
+             * @brief Get the line number from which the task was called
+             * @return int The line number from which the task was called
+             */
+            int GetLine() const { return line_; }
+
+            /**
+             * @brief Get the function from which the task was called
+             * @return std::string_view The function from which the task was called
+             */
+            std::string_view GetFunction() const { return function_; }
+
+        private:
+            std::string file_;
+            int line_;
+            std::string function_;
+        };
+
         /**
          * @brief 
          * Alias for a task function that takes a JobScheduler reference
@@ -801,7 +841,7 @@ public:
          * The function to be executed as part of the task
          * If nullptr is passed, will be asserted
          */
-        Task(Func func);
+        Task(Func func, Caller caller = Caller("Unknown", 0, "Unknown"));
 
         /**
          * @brief 
@@ -815,7 +855,7 @@ public:
          * Additional task information
          * If nullptr is passed, will be asserted
          */
-        Task(Func func, std::unique_ptr<Info> info);
+        Task(Func func, std::unique_ptr<Info> info = nullptr, Caller caller = Caller("Unknown", 0, "Unknown"));
 
         ~Task() = default;
 
@@ -829,7 +869,10 @@ public:
          * @brief 
          * Execute the task function
          * 
-         * @param job_scheduler 
+         * @param ctx
+         * Reference to the Context object for this system
+         * 
+         * @param job_sched 
          * Reference to the JobScheduler
          * 
          * @return true 
@@ -838,7 +881,7 @@ public:
          * @return false 
          * If the task failed
          */
-        bool Execute(Context& context, JobScheduler& job_scheduler);
+        bool Execute(Context& ctx, JobScheduler& job_sched);
 
         /**
          * @brief 
@@ -849,12 +892,24 @@ public:
          */
         const Info& GetInfo() const;
 
+        /**
+         * @brief 
+         * Get the caller information
+         * 
+         * @return const Caller& 
+         * Reference to the Caller
+         */
+        const Caller& GetCaller() const { return caller_; }
+
     private:
         // The function to be executed as part of the task
         Func func_ = nullptr;
 
         // Information about the task
         std::unique_ptr<Info> info_ = nullptr;
+
+        // Information about the caller of the task
+        Caller caller_;
     };
 
     /**
@@ -867,14 +922,13 @@ public:
      * @brief
      * Construct a new System object
      * 
-     * @param job_scheduler 
+     * @param job_sched 
      * Reference to the JobScheduler
      * 
-     * @param query 
-     * Unique pointer to the Query object 
-     * Can not be nullptr If nullptr is passed, will be asserted
+     * @param ctx
+     * Unique pointer to the Context object for this system
      */
-    System(JobScheduler& job_scheduler, std::unique_ptr<Context> context);
+    System(JobScheduler& job_sched, std::unique_ptr<Context> ctx);
 
     /**
      * @brief Destroy the System object
@@ -1169,5 +1223,48 @@ private:
     // Mutex for thread-safe access to the system proxies map
     std::mutex mutex_;
 };
+
+/**
+ * @brief
+ * Helper function to add a task to a system's task list with a specific context type
+ */
+template <typename ContextType>
+void AddTask(
+    tecs::System::TaskList& task_list, 
+    std::function<bool(ContextType&, tecs::JobScheduler&)> func,
+    std::unique_ptr<tecs::System::Task::Info> info = nullptr,
+    std::string_view file = "Unknown", int line = 0, std::string_view function = "Unknown")
+{
+    // Create a task function that casts the context to the specified type and executes the provided function
+    tecs::System::Task::Func task_func = 
+        [func = std::move(func)](tecs::System::Context& ctx, tecs::JobScheduler& job_sched) -> bool
+    {
+        // Cast the context to the specified type
+        ContextType* typed_ctx = ctx.As<ContextType>();
+        if (!typed_ctx)
+        {
+            std::cerr << "Failed to cast system context to the specified type." << std::endl;
+            return false; // Cast failed
+        }
+
+        // Execute the provided function with the typed context and job scheduler
+        return func(*typed_ctx, job_sched);
+    };
+
+    // Create a Caller object with the provided file, line, and function information
+    tecs::System::Task::Caller caller(file, line, function);
+
+    // Create a new task with the created task function and provided info, and add it to the task list
+    if (info) // If additional task information is provided, include it in the task
+    {
+        tecs::System::Task task(std::move(task_func), std::move(info), caller);
+        task_list.emplace_back(std::move(task));
+    }
+    else // If no additional task information is provided, create a task without info
+    {
+        tecs::System::Task task(std::move(task_func), caller);
+        task_list.emplace_back(std::move(task));
+    }
+}
 
 } // namespace tecs

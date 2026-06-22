@@ -10,17 +10,12 @@ add_library(tecs STATIC
     include/tecs/tecs.h
     include/tecs/id.h
     include/tecs/job.h
-    include/tecs/ecs.h
-    include/tecs/class_template.h
-    include/tecs/reflection.h
 
     # ---- Sources ----
 
     src/tecs.cpp
     src/id.cpp
     src/job.cpp
-    src/ecs.cpp
-    src/reflection.cpp
 )
 
 # C++ 17 standard
@@ -67,8 +62,6 @@ if (BUILD_TESTING)
     add_executable(tecs_tests
         tests/id.cpp
         tests/job.cpp
-        tests/ecs.cpp
-        tests/reflection.cpp
     )
 
     target_link_libraries(tecs_tests
