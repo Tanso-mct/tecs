@@ -9,6 +9,7 @@
 #include <queue>
 #include <unordered_map>
 #include <mutex>
+#include <cassert>
 
 namespace tecs
 {
@@ -23,14 +24,24 @@ public:
      * @param T : The type of system port to convert to
      * @return T* : A pointer to the converted system port, or nullptr if the conversion fails
      */
-    template<typename T> T* ConvertTo() const;
+    template<typename T> T* ConvertTo() const
+    {
+        T* converted_port = dynamic_cast<T*>(const_cast<Port*>(this));
+        assert(converted_port != nullptr && "Port conversion failed. Ensure that the port type is correct.");
+        return converted_port;
+    }
 
     /**
      * @brief : Convert the read port to a specific type of system port
      * @param T : The type of system port to convert to
      * @return const T* : A pointer to the converted system port, or nullptr if the conversion fails
      */
-    template<typename T> const T* ConvertTo() const;
+    template<typename T> const T* ConvertTo() const
+    {
+        const T* converted_port = dynamic_cast<const T*>(this);
+        assert(converted_port != nullptr && "Port conversion failed. Ensure that the port type is correct.");
+        return converted_port;
+    }
 
 };
 
