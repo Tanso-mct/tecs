@@ -20,11 +20,11 @@ public:
     virtual ~Port() = default;
 
     /**
-     * @brief : Convert the write port to a specific type of system port
-     * @param T : The type of system port to convert to
-     * @return T* : A pointer to the converted system port, or nullptr if the conversion fails
+     * @brief : Convert the port to a specific writeable system port type
+     * @param T : The type of system write port to convert to
+     * @return T* : A pointer to the converted writeable system port, or nullptr if the conversion fails
      */
-    template<typename T> T* ConvertTo() const
+    template<typename T> T* ConvertToWrite() const
     {
         T* converted_port = dynamic_cast<T*>(const_cast<Port*>(this));
         assert(converted_port != nullptr && "Port conversion failed. Ensure that the port type is correct.");
@@ -32,11 +32,11 @@ public:
     }
 
     /**
-     * @brief : Convert the read port to a specific type of system port
-     * @param T : The type of system port to convert to
-     * @return const T* : A pointer to the converted system port, or nullptr if the conversion fails
+     * @brief : Convert the port to a specific readable system port type
+     * @param T : The type of system read port to convert to
+     * @return const T* : A pointer to the converted readable system port, or nullptr if the conversion fails
      */
-    template<typename T> const T* ConvertTo() const
+    template<typename T> const T* ConvertToRead() const
     {
         const T* converted_port = dynamic_cast<const T*>(this);
         assert(converted_port != nullptr && "Port conversion failed. Ensure that the port type is correct.");
@@ -55,6 +55,7 @@ public:
      */
     TaskInfo(std::string name, uint32_t tag);
 
+    TaskInfo() = default;
     ~TaskInfo() = default;
 
     /**
@@ -70,10 +71,10 @@ public:
     uint32_t GetTag() const;
 
 private:
-    // @brief : The name of the task
+    // The name of the task
     std::string name_;
 
-    // @brief : A unique identifier for the task
+    // A unique identifier for the task
     uint32_t tag_;
 
 };
@@ -103,10 +104,10 @@ public:
     std::string_view GetMessage() const;
 
 private:
-    // @brief : A boolean indicating whether the task was successful
+    // A boolean indicating whether the task was successful
     bool success_;
 
-    // @brief : A message providing additional information about the task result
+    // A message providing additional information about the task result
     std::string message_;
 
 };
@@ -137,7 +138,7 @@ public:
     virtual TaskResult Execute(Port& write_port, Port& read_port) = 0;
 
 private:
-    // @brief : The information about the task
+    // The information about the task
     TaskInfo info_;
 
 };
@@ -174,15 +175,39 @@ public:
     std::string_view GetFunction() const;
 
 private:
-    // @brief : The file name of the caller
+    // The file name of the caller
     std::string file_;
 
-    // @brief : The line number of the caller
+    // The line number of the caller
     int line_;
 
-    // @brief : The function name of the caller
+    // The function name of the caller
     std::string function_;
 
+};
+
+class TaskSet
+{
+public:
+    /**
+     * @brief : Construct a new TaskSet object with the specified task and caller information
+     * @param task : A unique pointer to the task to be executed
+     * @param caller_info : The information about the caller of the task
+     */
+    TaskSet(std::unique_ptr<Task> task, TaskCallerInfo caller_info);
+
+    ~TaskSet() = default;
+
+    TaskSet(const TaskSet&) = delete;
+    TaskSet& operator=(const TaskSet&) = delete;
+    TaskSet(TaskSet&&) noexcept = default;
+    TaskSet& operator=(TaskSet&&) noexcept = default;
+
+    // The task to be executed
+    std::unique_ptr<Task> task;
+
+    // The information about the caller of the task
+    TaskCallerInfo caller_info;
 };
 
 class TaskList
@@ -192,6 +217,11 @@ public:
 
     ~TaskList() = default;
 
+    TaskList(const TaskList&) = delete;
+    TaskList& operator=(const TaskList&) = delete;
+    TaskList(TaskList&&) noexcept = default;
+    TaskList& operator=(TaskList&&) noexcept = default;
+
     /**
      * @brief : Add a task to the task list with the caller information
      * @param task : A unique pointer to the task to add
@@ -200,18 +230,13 @@ public:
     void AddTask(std::unique_ptr<Task> task, TaskCallerInfo caller_info);
 
     /**
-     * @brief : A type alias for a pair consisting of a task and the caller information
-     */
-    using TaskSet = std::pair<std::unique_ptr<Task>, TaskCallerInfo>;
-
-    /**
      * @brief : Get the list of tasks in the task list
-     * @return std::vector<TaskSet> : A vector of TaskSet
+     * @return std::vector<TaskSet>& : A vector of TaskSet
      */
-    std::vector<TaskSet> GetTasks() const;
+    std::vector<TaskSet>& GetTasks();
 
 private:
-    // @brief : A vector of TaskSet, where each TaskSet consists of a task and the caller information
+    // A vector of TaskSet, where each TaskSet consists of a task and the caller information
     std::vector<TaskSet> tasks_;
 
 };
@@ -227,7 +252,7 @@ public:
      * @brief : Add a task list to the queue
      * @param task_list : The task list to add to the queue
      */
-    void Enqueue(TaskList task_list);
+    void Enqueue(TaskList&& task_list);
 
     /**
      * @brief : Remove and return the next task list from the queue
@@ -236,7 +261,7 @@ public:
     TaskList Dequeue();
 
 private:
-    // @brief : A queue of task lists
+    // A queue of task lists
     std::queue<TaskList> queue_;
 
 };
@@ -263,10 +288,10 @@ public:
     TaskInfo GetCurrentTaskInfo() const;
 
 private:
-    // @brief : A mutex to protect access to the current task information
-    std::mutex mutex_;
+    // A mutex to protect access to the current task information
+    mutable std::mutex mutex_;
 
-    // @brief : The information about the currently executing task
+    // The information about the currently executing task
     TaskInfo current_task_info_;
 
 };
@@ -286,7 +311,7 @@ public:
      * @param task_list : The task list to submit to the system
      * @param caller_info : The information about the caller of the task list
      */
-    void SubmitTaskList(TaskList task_list, TaskCallerInfo caller_info);
+    void SubmitTaskList(TaskList&& task_list, TaskCallerInfo caller_info);
 
     /**
      * @brief : Get a reference to the read port for the system
@@ -316,18 +341,23 @@ protected:
     bool Initialize(std::unique_ptr<Port> write_port, std::unique_ptr<Port> read_port);
 
 private:
-    // @brief : The task processor for the system
+    // Static variable to keep track of the next available system ID
+    static uint32_t next_id_;
+
+    // The task processor for the system
     TaskProcessor task_processor_;
 
-    // @brief : The task list queue for the system
+    // The task list queue for the system
     TaskListQueue task_queue_;
 
-    // @brief : A unique pointer to the write port for the system
+    // A unique pointer to the write port for the system
     std::unique_ptr<Port> write_port_;
 
-    // @brief : A unique pointer to the read port for the system
+    // A unique pointer to the read port for the system
     std::unique_ptr<Port> read_port_;
 
+    // Allow SystemBase to access private members of System
+    friend class SystemBase;
 };
 
 class SystemBase
@@ -337,10 +367,14 @@ public:
     virtual ~SystemBase() = default;
 
     /**
-     * @brief : Get the unique idedntifier of the system
+     * @brief : Get the unique identifier of the system
      * @return uint32_t : The unique identifier of the system
      */
-    static uint32_t GetID();
+    static uint32_t GetID()
+    {
+        static uint32_t id = next_id_++;
+        return id;
+    }
 
 };
 
@@ -360,7 +394,7 @@ public:
      * @param task_list : The task list to submit to the system view
      * @param caller_info : The information about the caller of the task list
      */
-    void SubmitTaskList(TaskList task_list, TaskCallerInfo caller_info);
+    void SubmitTaskList(TaskList&& task_list, TaskCallerInfo caller_info);
 
     /**
      * @brief : Get a reference to the read port for the system view
@@ -375,7 +409,7 @@ public:
     std::unique_ptr<SystemView> Clone() const;
 
 private:
-    // @brief : A reference to the system that this view represents
+    // A reference to the system that this view represents
     System& system_;
 
 };
@@ -402,7 +436,7 @@ public:
     std::unique_ptr<SystemView> GetView(uint32_t system_id) const;
 
 private:
-    // @brief : A map of system IDs to their corresponding registered system views
+    // A map of system IDs to their corresponding registered system views
     std::unordered_map<uint32_t, std::unique_ptr<SystemView>> views_;
 
 };
