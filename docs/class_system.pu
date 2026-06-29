@@ -252,10 +252,9 @@ class System
      * @param read_port : A unique pointer to the read port to use readable adapters
      * @return bool : True if the system was successfully initialized, false otherwise
 
-    + void SubmitTaskList(TaskList task_list, TaskCallerInfo caller_info)
+    + void SubmitTaskList(TaskList task_list)
      * @brief : Submit a task list to the system for processing
      * @param task_list : The task list to submit to the system
-     * @param caller_info : The information about the caller of the task list
 
     + const Port& GetReadPort() const
      * @brief : Get a reference to the read port for the system
@@ -325,10 +324,9 @@ class SystemView
 
     + ~SystemView() = default
 
-    + void SubmitTaskList(TaskList task_list, TaskCallerInfo caller_info)
+    + void SubmitTaskList(TaskList task_list)
      * @brief : Submit a task list to the system view for processing
      * @param task_list : The task list to submit to the system view
-     * @param caller_info : The information about the caller of the task list
 
     + const Port& GetReadPort() const
      * @brief : Get a reference to the read port for the system view

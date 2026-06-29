@@ -309,9 +309,8 @@ public:
     /**
      * @brief : Submit a task list to the system for processing
      * @param task_list : The task list to submit to the system
-     * @param caller_info : The information about the caller of the task list
      */
-    void SubmitTaskList(TaskList&& task_list, TaskCallerInfo caller_info);
+    void SubmitTaskList(TaskList&& task_list);
 
     /**
      * @brief : Get a reference to the read port for the system
@@ -340,10 +339,10 @@ protected:
      */
     bool Initialize(std::unique_ptr<Port> write_port, std::unique_ptr<Port> read_port);
 
-private:
     // Static variable to keep track of the next available system ID
     static uint32_t next_id_;
 
+private:
     // The task processor for the system
     TaskProcessor task_processor_;
 
@@ -355,11 +354,9 @@ private:
 
     // A unique pointer to the read port for the system
     std::unique_ptr<Port> read_port_;
-
-    // Allow SystemBase to access private members of System
-    friend class SystemBase;
 };
 
+template <typename T>
 class SystemBase
     : public System
 {
@@ -392,9 +389,8 @@ public:
     /**
      * @brief : Submit a task list to the system view for processing
      * @param task_list : The task list to submit to the system view
-     * @param caller_info : The information about the caller of the task list
      */
-    void SubmitTaskList(TaskList&& task_list, TaskCallerInfo caller_info);
+    void SubmitTaskList(TaskList&& task_list);
 
     /**
      * @brief : Get a reference to the read port for the system view

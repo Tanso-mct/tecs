@@ -143,7 +143,7 @@ System::System()
 {
 }
 
-void System::SubmitTaskList(TaskList&& task_list, TaskCallerInfo caller_info)
+void System::SubmitTaskList(TaskList&& task_list)
 {
     task_queue_.Enqueue(std::move(task_list));
 }
@@ -183,9 +183,9 @@ SystemView::SystemView(System& system)
 {
 }
 
-void SystemView::SubmitTaskList(TaskList&& task_list, TaskCallerInfo caller_info)
+void SystemView::SubmitTaskList(TaskList&& task_list)
 {
-    system_.SubmitTaskList(std::move(task_list), std::move(caller_info));
+    system_.SubmitTaskList(std::move(task_list));
 }
 
 const Port& SystemView::GetReadPort() const
