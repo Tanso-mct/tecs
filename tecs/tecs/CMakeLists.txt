@@ -8,7 +8,6 @@ add_library(tecs STATIC
     # ---- Headers ----
 
     include/tecs/tecs.h
-    include/tecs/id.h
     include/tecs/job.h
     include/tecs/system.h
     include/tecs/registry.h
@@ -16,7 +15,6 @@ add_library(tecs STATIC
     # ---- Sources ----
 
     src/tecs.cpp
-    src/id.cpp
     src/job.cpp
     src/system.cpp
     src/registry.cpp
@@ -64,7 +62,6 @@ if (BUILD_TESTING)
     FetchContent_MakeAvailable(googletest)
 
     add_executable(tecs_tests
-        tests/id.cpp
         tests/job.cpp
         tests/system.cpp
     )

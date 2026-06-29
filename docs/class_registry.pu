@@ -41,7 +41,7 @@ class Entity
      * @param other : The other entity to compare with
      * @return : Returns true if this entity is less than the other, false otherwise
 
-    - uint64_t MakeBits(uint32_t id, uint32_t gen, uint32_t valid) const
+    - uint64_t MakeBits(uint32_t id, uint32_t gen, bool valid) const
      * @brief : Combines the ID, generation, and validity into a single 64-bit value
      * @param id : The unique identifier for the entity
      * @param gen : The generation count for the entity
@@ -180,9 +180,10 @@ class Registry
      * @param entity : The entity to check for validity
      * @return : Returns true if the entity is valid, false otherwise
 
-    + bool AddComponent(Entity entity, std::unique_ptr<Component> component)
+    + bool AddComponent(Entity entity, uint32_t component_runtime_id, std::unique_ptr<Component> component)
      * @brief : Adds a component to an entity in the registry
      * @param entity : The entity to which the component will be added
+     * @param component_runtime_id : The runtime ID of the component type
      * @param component : A unique pointer to the component to be added
      * @return : Returns true if the component was added successfully, false otherwise
 
@@ -259,10 +260,10 @@ class Actor
      * @brief : Checks if the actor is valid (has a valid entity)
      * @return : Returns true if the actor is valid, false otherwise
 
-    + template<typename ComponentType> bool AddComponent(std::unique_ptr<ComponentConfig> config = nullptr)
+    + template<typename ComponentType> bool AddComponent(std::unique_ptr<Component> component)
      * @brief : Adds a component to the actor
      * @param ComponentType : The type of the component to add
-     * @param config : Optional configuration for the component
+     * @param component : A unique pointer to the component to be added
      * @return : Returns true if the component was added successfully, false otherwise
 
     + template<typename ComponentType> bool HasComponent() const

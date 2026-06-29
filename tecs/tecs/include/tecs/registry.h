@@ -81,25 +81,43 @@ private:
      * @param valid : The validity flag for the entity
      * @return : Returns a 64-bit value representing the entity
      */
-    uint64_t MakeBits(uint32_t id, uint32_t gen, uint32_t valid) const;
+    uint64_t MakeBits(uint32_t id, uint32_t gen, bool valid) const;
 
 private:
     // A combined representation of the entity's ID and generation
     uint64_t bits_;
 
     static constexpr unsigned VALID_SHIFT = 0;
-
     static constexpr unsigned ID_SHIFT = 1;
-
     static constexpr unsigned GEN_SHIFT = 32;
 
     static constexpr uint64_t VALID_MASK = uint64_t{1} << VALID_SHIFT;
-
     static constexpr uint64_t ID_MASK = (uint64_t{1} << 31) - 1;
-
     static constexpr uint64_t GEN_MASK = (uint64_t{1} << 32) - 1;
 
 };
+
+} // namespace tecs
+
+namespace std
+{
+    /**
+     * @brief
+     * Specialization of std::hash for tecs::Entity
+     * Allows using Entity as a key in unordered containers
+     */
+    template <>
+    struct hash<tecs::Entity>
+    {
+        size_t operator()(const tecs::Entity& entity) const noexcept
+        {
+            return static_cast<size_t>(entity.GetBits());
+        }
+    };
+} // namespace std
+
+namespace tecs
+{
 
 class ComponentConfig
 {
@@ -107,6 +125,9 @@ public:
     virtual ~ComponentConfig() = default;
 
 };
+
+// Forward declaration of Actor class
+class Actor;
 
 class Component
 {
@@ -156,7 +177,10 @@ public:
      * @brief : Retrieves the maximum runtime ID for components
      * @return : Returns the maximum runtime ID that can be assigned to components
      */
-    static uint32_t GetMaxRuntimeID();
+    static uint32_t GetMaxRuntimeID()
+    {
+        return max_runtime_id_;
+    }
 
 protected:
     // The maximum runtime ID for components
@@ -233,10 +257,11 @@ public:
     /**
      * @brief : Adds a component to an entity in the registry
      * @param entity : The entity to which the component will be added
+     * @param component_runtime_id : The runtime ID of the component type
      * @param component : A unique pointer to the component to be added
      * @return : Returns true if the component was added successfully, false otherwise
      */
-    bool AddComponent(Entity entity, std::unique_ptr<Component> component);
+    bool AddComponent(Entity entity, uint32_t component_runtime_id, std::unique_ptr<Component> component);
 
     /**
      * @brief : Checks if an entity has a specific component type in the registry
@@ -334,38 +359,53 @@ public:
     /**
      * @brief : Adds a component to the actor
      * @param ComponentType : The type of the component to add
-     * @param config : Optional configuration for the component
+     * @param component : A unique pointer to the component to be added
      * @return : Returns true if the component was added successfully, false otherwise
      */
-    template<typename ComponentType> bool AddComponent(std::unique_ptr<ComponentConfig> config = nullptr);
+    template<typename ComponentType> bool AddComponent(std::unique_ptr<Component> component)
+    {
+        return registry_.AddComponent(entity_, ComponentType::GetRuntimeID(), std::move(component));
+    }
 
     /**
      * @brief : Checks if the actor has a specific component
      * @param ComponentType : The type of the component to check for
      * @return : Returns true if the actor has the component, false otherwise
      */
-    template<typename ComponentType> bool HasComponent() const;
+    template<typename ComponentType> bool HasComponent() const
+    {
+        return registry_.HasComponent(entity_, ComponentType::GetRuntimeID());
+    }
 
     /**
      * @brief : Retrieves a pointer to a specific component of the actor
      * @param ComponentType : The type of the component to retrieve
      * @return : Returns a pointer to the component if it exists, nullptr otherwise
      */
-    template<typename ComponentType> Component* GetComponent();
+    template<typename ComponentType> Component* GetComponent()
+    {
+        return registry_.GetComponent(entity_, ComponentType::GetRuntimeID());
+    }
 
     /**
      * @brief : Retrieves a const pointer to a specific component of the actor
      * @param ComponentType : The type of the component to retrieve
      * @return : Returns a const pointer to the component if it exists, nullptr otherwise
      */
-    template<typename ComponentType> const Component* GetComponent() const;
+    template<typename ComponentType> const Component* GetComponent() const
+    {
+        return registry_.GetComponent(entity_, ComponentType::GetRuntimeID());
+    }
 
     /**
      * @brief : Removes a specific component from the actor
      * @param ComponentType : The type of the component to remove
      * @return : Returns true if the component was removed successfully, false otherwise
      */
-    template<typename ComponentType> bool RemoveComponent();
+    template<typename ComponentType> bool RemoveComponent()
+    {
+        return registry_.RemoveComponent(entity_, ComponentType::GetRuntimeID());
+    }
 
 private:
     // The reference to the registry
