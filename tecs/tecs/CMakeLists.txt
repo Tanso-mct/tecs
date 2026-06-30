@@ -64,6 +64,7 @@ if (BUILD_TESTING)
     add_executable(tecs_tests
         tests/job.cpp
         tests/system.cpp
+        tests/registry.cpp
     )
 
     target_link_libraries(tecs_tests

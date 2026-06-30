@@ -200,6 +200,11 @@ class ComponentBase
     : public Component
 {
 public:
+    ComponentBase(std::string_view name, const GUID& guid) 
+        : Component(name, guid) 
+    {
+    }
+
     /**
      * @brief : Retrieves the runtime ID of the component type
      * @return : Returns a unique runtime ID for the component type
