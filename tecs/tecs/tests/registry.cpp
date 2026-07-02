@@ -120,11 +120,17 @@ TEST(tecs, registry)
     std::unique_ptr<tecs::Component> test_component = std::make_unique<tecs_registry_test::TestComponent>();
     EXPECT_TRUE(registry.AddComponent(entity, tecs_registry_test::TestComponent::GetRuntimeID(), std::move(test_component)));
     EXPECT_TRUE(registry.HasComponent(entity, tecs_registry_test::TestComponent::GetRuntimeID()));
+
+    // Add another test component to the entity
+    std::unique_ptr<tecs::Component> another_test_component = std::make_unique<tecs_registry_test::AnotherTestComponent>();
+    EXPECT_TRUE(registry.AddComponent(entity, tecs_registry_test::AnotherTestComponent::GetRuntimeID(), std::move(another_test_component)));
+    EXPECT_TRUE(registry.HasComponent(entity, tecs_registry_test::AnotherTestComponent::GetRuntimeID()));
     
     // Retrieve the component types for the entity
     std::vector<uint32_t> component_types = registry.GetComponentTypes(entity);
-    EXPECT_EQ(component_types.size(), 1);
+    EXPECT_EQ(component_types.size(), 2);
     EXPECT_EQ(component_types[0], tecs_registry_test::TestComponent::GetRuntimeID());
+    EXPECT_EQ(component_types[1], tecs_registry_test::AnotherTestComponent::GetRuntimeID());
 
     // Retrieve the component and verify its type
     tecs::Component* retrieved_component 
@@ -132,11 +138,21 @@ TEST(tecs, registry)
     EXPECT_NE(retrieved_component, nullptr);
     EXPECT_EQ(retrieved_component->GetName(), "TestComponent");
 
+    tecs::Component* another_retrieved_component 
+        = registry.GetComponent(entity, tecs_registry_test::AnotherTestComponent::GetRuntimeID());
+    EXPECT_NE(another_retrieved_component, nullptr);
+    EXPECT_EQ(another_retrieved_component->GetName(), "AnotherTestComponent");
+
     // Retrieve the component using the const version of GetComponent
     const tecs::Component* const_retrieved_component 
         = registry.GetComponent(entity, tecs_registry_test::TestComponent::GetRuntimeID());
     EXPECT_NE(const_retrieved_component, nullptr);
     EXPECT_EQ(const_retrieved_component->GetName(), "TestComponent");
+
+    const tecs::Component* const_another_retrieved_component 
+        = registry.GetComponent(entity, tecs_registry_test::AnotherTestComponent::GetRuntimeID());
+    EXPECT_NE(const_another_retrieved_component, nullptr);
+    EXPECT_EQ(const_another_retrieved_component->GetName(), "AnotherTestComponent");
 
     // View the entities with the test component but without committing the entity
     const std::set<tecs::Entity>& entities_with_test_component 
@@ -148,6 +164,9 @@ TEST(tecs, registry)
 
     // View the entities with the test component
     for (const tecs::Entity& e : registry.View<tecs_registry_test::TestComponent>())
+        EXPECT_EQ(e, entity);
+
+    for (const tecs::Entity& e : registry.View<tecs_registry_test::AnotherTestComponent>())
         EXPECT_EQ(e, entity);
 
     // Destroy the entity
@@ -172,17 +191,35 @@ TEST(tecs, actor)
     EXPECT_TRUE(actor.AddComponent<tecs_registry_test::TestComponent>(std::move(test_component)));
     EXPECT_TRUE(actor.HasComponent<tecs_registry_test::TestComponent>());
 
+    // Add another test component to the actor
+    std::unique_ptr<tecs::Component> another_test_component = std::make_unique<tecs_registry_test::AnotherTestComponent>();
+    EXPECT_TRUE(actor.AddComponent<tecs_registry_test::AnotherTestComponent>(std::move(another_test_component)));
+    EXPECT_TRUE(actor.HasComponent<tecs_registry_test::AnotherTestComponent>());
+
     // Retrieve the component from the actor and verify its type
     tecs::Component* retrieved_component = actor.GetComponent<tecs_registry_test::TestComponent>();
     EXPECT_NE(retrieved_component, nullptr);
     EXPECT_EQ(retrieved_component->GetName(), "TestComponent");
+
+    tecs::Component* another_retrieved_component = actor.GetComponent<tecs_registry_test::AnotherTestComponent>();
+    EXPECT_NE(another_retrieved_component, nullptr);
+    EXPECT_EQ(another_retrieved_component->GetName(), "AnotherTestComponent");
 
     // Retrieve the component using the const version of GetComponent
     const tecs::Component* const_retrieved_component = actor.GetComponent<tecs_registry_test::TestComponent>();
     EXPECT_NE(const_retrieved_component, nullptr);
     EXPECT_EQ(const_retrieved_component->GetName(), "TestComponent");
 
+    const tecs::Component* const_another_retrieved_component = actor.GetComponent<tecs_registry_test::AnotherTestComponent>();
+    EXPECT_NE(const_another_retrieved_component, nullptr);
+    EXPECT_EQ(const_another_retrieved_component->GetName(), "AnotherTestComponent");
+
     // Remove the component from the actor
     EXPECT_TRUE(actor.RemoveComponent<tecs_registry_test::TestComponent>());
     EXPECT_FALSE(actor.HasComponent<tecs_registry_test::TestComponent>());
+    EXPECT_TRUE(actor.HasComponent<tecs_registry_test::AnotherTestComponent>());
+
+    // Remove the another component from the actor
+    EXPECT_TRUE(actor.RemoveComponent<tecs_registry_test::AnotherTestComponent>());
+    EXPECT_FALSE(actor.HasComponent<tecs_registry_test::AnotherTestComponent>());
 }
