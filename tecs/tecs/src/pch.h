@@ -17,3 +17,4 @@
 #include <set>
 #include <initguid.h>
 #include <future>
+#include <guiddef.h>
