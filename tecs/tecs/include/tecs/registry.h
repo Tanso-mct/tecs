@@ -314,6 +314,16 @@ public:
      */
     const std::set<Entity>& View(uint32_t component_runtime_id) const;
 
+    /**
+     * @brief : Retrieves a set of entities that have a specific component type in the registry
+     * @tparam T : The component type to view
+     * @return : Returns a const reference to a set of entities that have the specified component type
+     */
+    template <typename T> const std::set<Entity>& View() const
+    {
+        return View(T::GetRuntimeID());
+    }
+
 private:
     /**
      * @brief : Checks if an entity exists in the registry

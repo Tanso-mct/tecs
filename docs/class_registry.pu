@@ -221,6 +221,11 @@ class Registry
      * @param component_runtime_id : The runtime ID of the component type to view
      * @return : Returns a const reference to a set of entities that have the specified component type
 
+    + template <typename T> const std::set<Entity>& View() const
+     * @brief : Retrieves a set of entities that have a specific component type in the registry
+     * @tparam T : The component type to view
+     * @return : Returns a const reference to a set of entities that have the specified component type
+
     - bool CheckEntityExists(Entity entity) const
      * @brief : Checks if an entity exists in the registry
      * @param entity : The entity to check for existence
