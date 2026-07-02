@@ -1,0 +1,47 @@
+﻿@startuml
+
+class LogExporter
+{
+    + virtual ~LogExporter() = default
+
+    + std::unique_ptr<uint8_t[]> Export() const
+     * @brief : Exports the log data to a byte array
+     * @return std::unique_ptr<uint8_t[]> : Returns a unique pointer to a byte array containing the exported log data
+    ---
+}
+
+class JobLogExporter
+{
+    + JobLogExporter(JobTracker& job_tracker)
+     * @brief : Constructor for JobLogExporter
+     * @param job_tracker : Reference to a JobTracker object
+
+    + std::unique_ptr<uint8_t[]> Export() const override
+     * @brief : Exports the job log data to a byte array
+     * @return std::unique_ptr<uint8_t[]> : Returns a unique pointer to a byte array containing the exported job log data
+    ---
+    - JobTracker& job_tracker
+     * Reference to the JobTracker object used for exporting job logs
+}
+JobLogExporter --|> LogExporter
+
+class SystemLogExporter
+{
+    ---
+}
+SystemLogExporter --|> LogExporter
+
+class EntityLogExporter
+{
+    ---
+}
+EntityLogExporter --|> LogExporter
+
+class Debug
+{
+    ---
+}
+Debug *-- LogExporter
+Debug *-- StateExporter
+
+@enduml
