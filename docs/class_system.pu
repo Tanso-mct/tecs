@@ -332,6 +332,10 @@ class SystemView
      * @brief : Get a reference to the read port for the system view
      * @return const Port& : A reference to the read port for the system view
 
+    + TaskInfo GetCurrentTaskInfo() const
+     * @brief : Get the information about the currently executing task in the system view
+     * @return TaskInfo : The information about the currently executing task in the system view
+
     + std::unique_ptr<SystemView> Clone() const
      * @brief : Create a new instance of the system view that is a copy of the current instance
      * @return std::unique_ptr<SystemView> : A unique pointer to the cloned system view

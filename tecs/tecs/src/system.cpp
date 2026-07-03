@@ -193,6 +193,11 @@ const Port& SystemView::GetReadPort() const
     return system_.GetReadPort();
 }
 
+TaskInfo SystemView::GetCurrentTaskInfo() const
+{
+    return system_.GetCurrentTaskInfo();
+}
+
 std::unique_ptr<SystemView> SystemView::Clone() const
 {
     return std::make_unique<SystemView>(system_);

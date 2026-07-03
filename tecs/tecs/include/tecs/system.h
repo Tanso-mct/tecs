@@ -399,6 +399,12 @@ public:
     const Port& GetReadPort() const;
 
     /**
+     * @brief : Flush the tasks in the system view's task queue using the task processor
+     * @return bool : True if the tasks were successfully flushed, false otherwise
+     */
+    TaskInfo GetCurrentTaskInfo() const;
+
+    /**
      * @brief : Create a new instance of the system view that is a copy of the current instance
      * @return std::unique_ptr<SystemView> : A unique pointer to the cloned system view
      */
