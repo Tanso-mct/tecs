@@ -11,6 +11,7 @@ add_library(tecs STATIC
     include/tecs/job.h
     include/tecs/system.h
     include/tecs/registry.h
+    include/tecs/debug.h
 
     # ---- Sources ----
 
@@ -18,6 +19,7 @@ add_library(tecs STATIC
     src/job.cpp
     src/system.cpp
     src/registry.cpp
+    src/debug.cpp
 )
 
 # C++ 17 standard
