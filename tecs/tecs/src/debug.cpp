@@ -38,7 +38,7 @@ std::unique_ptr<uint8_t[]> JobLogExporter::Export(uint32_t& size)
     // Calculate the total amount of job history
     uint32_t total_history_count = job_tracker_.GetWorkerThreadCount() * analyzed_frame_count_;
 
-    std::string log_csv;
+    std::string log_csv = ",";
 
     // Create the column headers for the CSV
     for (uint32_t frame = 0; frame < analyzed_frame_count_; ++frame)
