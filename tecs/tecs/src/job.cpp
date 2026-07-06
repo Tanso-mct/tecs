@@ -297,4 +297,9 @@ std::vector<JobExecutionInfo> JobTracker::GetThreadInfos() const
     return thread_infos; // Return the vector of worker thread information, including their current job types
 }
 
+uint32_t JobTracker::GetWorkerThreadCount() const
+{
+    return static_cast<uint32_t>(worker_threads_.size());
+}
+
 } // namespace tecs

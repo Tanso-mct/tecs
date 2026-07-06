@@ -22,14 +22,19 @@ public:
      * @brief : Analyzes the log data and returns true if the analysis is successful, false otherwise
      * @return bool : Returns true if the log analysis is successful, false otherwise
      */
-    virtual bool Analyze() const = 0;
+    virtual bool Analyze() = 0;
+
+    /**
+     * @brief : Clears the log data, resetting any internal state
+     */
+    virtual void Clear() = 0;
 
     /**
      * @brief : Exports the log data to a byte array
      * @param size : Reference to a variable that will hold the size of the exported log data
      * @return std::unique_ptr<uint8_t[]> : Returns a unique pointer to a byte array containing the exported log data
      */
-    virtual std::unique_ptr<uint8_t[]> Export(uint32_t& size) const = 0;
+    virtual std::unique_ptr<uint8_t[]> Export(uint32_t& size) = 0;
 
 };
 
@@ -47,18 +52,29 @@ public:
      * @brief : Analyzes the job log data and returns true if the analysis is successful, false otherwise
      * @return bool : Returns true if the job log analysis is successful, false otherwise
      */
-    bool Analyze() const override;
+    bool Analyze() override;
+
+    /**
+     * @brief : Clears the job log data, resetting any internal state
+     */
+    void Clear() override;
 
     /**
      * @brief : Exports the job log data to a byte array
      * @param size : Reference to a variable that will hold the size of the exported job log data
      * @return std::unique_ptr<uint8_t[]> : Returns a unique pointer to a byte array containing the exported job log data
      */
-    std::unique_ptr<uint8_t[]> Export(uint32_t& size) const override;
+    std::unique_ptr<uint8_t[]> Export(uint32_t& size) override;
 
 private:
     // Reference to the JobTracker object used for exporting job logs
     JobTracker& job_tracker_;
+
+    // A map that associates job types with their corresponding job execution information for historical tracking
+    std::unordered_map<uint32_t, std::vector<JobExecutionInfo>> job_history_;
+
+    // Counter for the number of analyzed frames
+    uint32_t analyzed_frame_count_ = 0;
 
 };
 
@@ -76,14 +92,19 @@ public:
      * @brief : Analyzes the system log data and returns true if the analysis is successful, false otherwise
      * @return bool : Returns true if the system log analysis is successful, false otherwise
      */
-    bool Analyze() const override;
+    bool Analyze() override;
+
+    /**
+     * @brief : Clears the job log data, resetting any internal state
+     */
+    void Clear() override;
 
     /**
      * @brief : Exports the system log data to a byte array
      * @param size : Reference to a variable that will hold the size of the exported system log data
      * @return std::unique_ptr<uint8_t[]> : Returns a unique pointer to a byte array containing the exported system log data
      */
-    std::unique_ptr<uint8_t[]> Export(uint32_t& size) const override;
+    std::unique_ptr<uint8_t[]> Export(uint32_t& size) override;
 
 private:
     // A vector of unique pointers to SystemView objects used for exporting system logs
@@ -105,14 +126,19 @@ public:
      * @brief : Analyzes the entity log data and returns true if the analysis is successful, false otherwise
      * @return bool : Returns true if the entity log analysis is successful, false otherwise
      */
-    bool Analyze() const override;
+    bool Analyze() override;
+
+    /**
+     * @brief : Clears the job log data, resetting any internal state
+     */
+    void Clear() override;
 
     /**
      * @brief : Exports the entity log data to a byte array
      * @param size : Reference to a variable that will hold the size of the exported entity log data
      * @return std::unique_ptr<uint8_t[]> : Returns a unique pointer to a byte array containing the exported entity log data
      */
-    std::unique_ptr<uint8_t[]> Export(uint32_t& size) const override;
+    std::unique_ptr<uint8_t[]> Export(uint32_t& size) override;
 
 private:
     // Reference to the Registry object used for exporting entity logs

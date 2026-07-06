@@ -4,11 +4,14 @@ class LogExporter
 {
     + virtual ~LogExporter() = default
 
-    + virtual bool Analyze() const = 0
+    + virtual bool Analyze() = 0
      * @brief : Analyzes the log data and returns true if the analysis is successful, false otherwise
      * @return bool : Returns true if the log analysis is successful, false otherwise
 
-    + virtual std::unique_ptr<uint8_t[]> Export(uint32_t& size) const = 0
+    + virtual void Clear() = 0
+     * @brief : Clears the log data, resetting any internal state
+
+    + virtual std::unique_ptr<uint8_t[]> Export(uint32_t& size) = 0
      * @brief : Exports the log data to a byte array
      * @param size : Reference to a variable that will hold the size of the exported log data
      * @return std::unique_ptr<uint8_t[]> : Returns a unique pointer to a byte array containing the exported log data
@@ -21,17 +24,26 @@ class JobLogExporter
      * @brief : Constructor for JobLogExporter
      * @param job_tracker : Reference to a JobTracker object
 
-    + bool Analyze() const override
+    + bool Analyze() override
      * @brief : Analyzes the job log data and returns true if the analysis is successful, false otherwise
      * @return bool : Returns true if the job log analysis is successful, false otherwise
 
-    + std::unique_ptr<uint8_t[]> Export(uint32_t& size) const override
+    + void Clear() override
+     * @brief : Clears the job log data, resetting any internal state
+
+    + std::unique_ptr<uint8_t[]> Export(uint32_t& size) override
      * @brief : Exports the job log data to a byte array
      * @param size : Reference to a variable that will hold the size of the exported job log data
      * @return std::unique_ptr<uint8_t[]> : Returns a unique pointer to a byte array containing the exported job log data
     ---
     - JobTracker& job_tracker_
      * Reference to the JobTracker object used for exporting job logs
+
+    - std::unordered_map<uint32_t, std::vector<JobExecutionInfo>> job_history_
+     * A map that associates job types with their corresponding job execution information for historical tracking
+
+    - uint32_t analyzed_frame_count_ = 0
+     * Counter for the number of analyzed frames
 }
 JobLogExporter --|> LogExporter
 JobLogExporter --> JobTracker
@@ -42,11 +54,14 @@ class SystemLogExporter
      * @brief : Constructor for SystemLogExporter
      * @param system_views : A vector of unique pointers to SystemView objects
 
-    + bool Analyze() const override
+    + bool Analyze() override
      * @brief : Analyzes the system log data and returns true if the analysis is successful, false otherwise
      * @return bool : Returns true if the system log analysis is successful, false otherwise
 
-    + std::unique_ptr<uint8_t[]> Export(uint32_t& size) const override
+    + void Clear() override
+     * @brief : Clears the system log data, resetting any internal state
+
+    + std::unique_ptr<uint8_t[]> Export(uint32_t& size) override
      * @brief : Exports the system log data to a byte array
      * @param size : Reference to a variable that will hold the size of the exported system log data
      * @return std::unique_ptr<uint8_t[]> : Returns a unique pointer to a byte array containing the exported system log data
@@ -63,11 +78,14 @@ class EntityLogExporter
      * @brief : Constructor for EntityLogExporter
      * @param registry : Reference to a Registry object
 
-    + bool Analyze() const override
+    + bool Analyze() override
      * @brief : Analyzes the entity log data and returns true if the analysis is successful, false otherwise
      * @return bool : Returns true if the entity log analysis is successful, false otherwise
 
-    + std::unique_ptr<uint8_t[]> Export(uint32_t& size) const override
+    + void Clear() override
+     * @brief : Clears the entity log data, resetting any internal state
+
+    + std::unique_ptr<uint8_t[]> Export(uint32_t& size) override
      * @brief : Exports the entity log data to a byte array
      * @param size : Reference to a variable that will hold the size of the exported entity log data
      * @return std::unique_ptr<uint8_t[]> : Returns a unique pointer to a byte array containing the exported entity log data
