@@ -138,9 +138,15 @@ TaskInfo TaskProcessor::GetCurrentTaskInfo() const
     return current_task_info_;
 }
 
-System::System()
-    : task_processor_(), task_queue_(), write_port_(nullptr), read_port_(nullptr)
+System::System(std::string name) : 
+    name_(std::move(name)),
+    task_processor_(), task_queue_(), write_port_(nullptr), read_port_(nullptr)
 {
+}
+
+std::string_view System::GetName() const
+{
+    return name_;
 }
 
 void System::SubmitTaskList(TaskList&& task_list)
@@ -181,6 +187,11 @@ uint32_t System::next_id_ = 0;
 SystemView::SystemView(System& system)
     : system_(system)
 {
+}
+
+std::string_view SystemView::GetSystemName() const
+{
+    return system_.GetName();
 }
 
 void SystemView::SubmitTaskList(TaskList&& task_list)

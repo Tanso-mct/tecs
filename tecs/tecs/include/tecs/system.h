@@ -300,11 +300,18 @@ class System
 {
 public:
     /**
-     * @brief : Create a new task processor and task list queue for the system
+     * @brief : Construct a new System object with the specified name
+     * @param name : The name of the system
      */
-    System();
+    System(std::string name);
 
     virtual ~System() = default;
+
+    /**
+     * @brief : Get the name of the system
+     * @return std::string_view : The name of the system
+     */
+    std::string_view GetName() const;
 
     /**
      * @brief : Submit a task list to the system for processing
@@ -343,6 +350,9 @@ protected:
     static uint32_t next_id_;
 
 private:
+    // The name of the system
+    std::string name_;
+
     // The task processor for the system
     TaskProcessor task_processor_;
 
@@ -361,6 +371,15 @@ class SystemBase
     : public System
 {
 public:
+    /**
+     * @brief : Construct a new SystemBase object with the specified name
+     * @param name : The name of the system
+     */
+    SystemBase(std::string name) : 
+        System(std::move(name))
+    {
+    }
+
     virtual ~SystemBase() = default;
 
     /**
@@ -385,6 +404,12 @@ public:
     SystemView(System& system);
 
     ~SystemView() = default;
+
+    /**
+     * @brief : Get the name of the system that this view represents
+     * @return std::string_view : The name of the system
+     */
+    std::string_view GetSystemName() const;
 
     /**
      * @brief : Submit a task list to the system view for processing

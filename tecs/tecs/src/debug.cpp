@@ -35,9 +35,6 @@ void JobLogExporter::Clear()
 
 std::unique_ptr<uint8_t[]> JobLogExporter::Export(uint32_t& size)
 {
-    // Calculate the total amount of job history
-    uint32_t total_history_count = job_tracker_.GetWorkerThreadCount() * analyzed_frame_count_;
-
     std::string log_csv = ",";
 
     // Create the column headers for the CSV
@@ -74,17 +71,60 @@ SystemLogExporter::SystemLogExporter(std::vector<std::unique_ptr<SystemView>>&& 
 
 bool SystemLogExporter::Analyze()
 {
+    // Get the system task information from each SystemView
+    for (const auto& system_view : system_views_)
+        system_task_history_[analyzed_frame_count_].emplace_back(std::move(system_view->GetCurrentTaskInfo()));
+
+    analyzed_frame_count_++; // Increment the analyzed frame count
+
     return true;
 }
 
 void SystemLogExporter::Clear()
 {
+    system_task_history_.clear(); // Clear the system task history map
+    analyzed_frame_count_ = 0; // Reset the analyzed frame count
 }
 
 std::unique_ptr<uint8_t[]> SystemLogExporter::Export(uint32_t& size)
 {
-    size = 0;
-    return std::make_unique<uint8_t[]>(size);
+    std::string log_csv = ",";
+
+    // Create the column headers for the CSV
+    for (uint32_t frame = 0; frame < analyzed_frame_count_; ++frame)
+        log_csv += "Frame " + std::to_string(frame) + ",";
+
+    log_csv += "\n";
+
+    for (uint32_t system_index = 0; system_index < system_views_.size(); ++system_index)
+    {
+        log_csv += system_views_[system_index]->GetSystemName().data();
+        log_csv += ",";
+        for (uint32_t frame = 0; frame < analyzed_frame_count_; ++frame)
+        {
+            const std::vector<TaskInfo>& task_infos = system_task_history_[frame];
+            const TaskInfo& task_info = task_infos[system_index];
+
+            if (task_info.GetName().empty())
+            {
+                log_csv += "Idle";
+                log_csv += ",";
+                continue;
+            }
+
+            log_csv += task_info.GetName().data();
+            log_csv += " (Tag: " + std::to_string(task_info.GetTag()) + ")";
+            log_csv += ",";
+        }
+        log_csv += "\n";
+    }
+
+    // Convert the CSV string to a byte array
+    size = static_cast<uint32_t>(log_csv.size());
+    std::unique_ptr<uint8_t[]> log_data = std::make_unique<uint8_t[]>(size);
+    std::memcpy(log_data.get(), log_csv.data(), size);
+
+    return log_data;
 }
 
 EntityLogExporter::EntityLogExporter(Registry& registry)

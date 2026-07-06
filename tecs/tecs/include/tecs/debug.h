@@ -70,7 +70,7 @@ private:
     // Reference to the JobTracker object used for exporting job logs
     JobTracker& job_tracker_;
 
-    // A map that associates job types with their corresponding job execution information for historical tracking
+    // A map that associates frame numbers with their corresponding job execution information for historical tracking
     std::unordered_map<uint32_t, std::vector<JobExecutionInfo>> job_history_;
 
     // Counter for the number of analyzed frames
@@ -110,6 +110,11 @@ private:
     // A vector of unique pointers to SystemView objects used for exporting system logs
     std::vector<std::unique_ptr<SystemView>> system_views_;
 
+    // A map that associates frame numbers with their corresponding system task information for historical tracking
+    std::unordered_map<uint32_t, std::vector<TaskInfo>> system_task_history_;
+
+    // Counter for the number of analyzed frames
+    uint32_t analyzed_frame_count_ = 0;
 };
 
 class EntityLogExporter

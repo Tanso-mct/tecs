@@ -74,7 +74,7 @@ private:
 class TestSystem : public tecs::SystemBase<TestSystem>
 {
 public:
-    TestSystem() : tecs::SystemBase<TestSystem>()
+    TestSystem() : tecs::SystemBase<TestSystem>("Test System")
     {
         std::unique_ptr<tecs::Port> write_port = std::make_unique<TestWritePort>(container_);
         std::unique_ptr<tecs::Port> read_port = std::make_unique<TestReadPort>(container_);
@@ -89,7 +89,7 @@ private:
 class AnotherTestSystem : public tecs::SystemBase<AnotherTestSystem>
 {
 public:
-    AnotherTestSystem() : tecs::SystemBase<AnotherTestSystem>()
+    AnotherTestSystem() : tecs::SystemBase<AnotherTestSystem>("Another Test System")
     {
         std::unique_ptr<tecs::Port> write_port = std::make_unique<TestWritePort>(container_);
         std::unique_ptr<tecs::Port> read_port = std::make_unique<TestReadPort>(container_);

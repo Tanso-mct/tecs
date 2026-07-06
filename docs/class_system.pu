@@ -241,8 +241,8 @@ TaskProcessor ..> Port
 
 class System
 {
-    + System()
-     * @brief : Create a new task processor and task list queue for the system
+    + System(std::string name)
+     * @brief : Construct a new System object with the specified name
 
     + virtual ~System() = default
 
@@ -251,6 +251,10 @@ class System
      * @param write_port : A unique pointer to the write port to use writeable adapters
      * @param read_port : A unique pointer to the read port to use readable adapters
      * @return bool : True if the system was successfully initialized, false otherwise
+
+    + std::string_view GetName() const
+     * @brief : Get the name of the system
+     * @return std::string_view : The name of the system
 
     + void SubmitTaskList(TaskList task_list)
      * @brief : Submit a task list to the system for processing
@@ -270,6 +274,9 @@ class System
     ---
     {static} - uint32_t next_id_
      * A static variable to generate unique identifiers for systems
+
+    - std::string name_
+     * The name of the system
 
     - TaskProcessor task_processor_
      * The task processor for the system
@@ -292,6 +299,10 @@ System *-- Port
 
 class SystemBase
 {
+    + SystemBase(std::string name)
+     * @brief : Construct a new SystemBase object with the specified name
+     * @param name : The name of the system
+
     + virtual SystemBase() = default
 
     {static} + uint32_t GetID()
@@ -323,6 +334,10 @@ class SystemView
      * @param system : The system to create a view for
 
     + ~SystemView() = default
+
+    + std::string_view GetSystemName() const
+     * @brief : Get the name of the system that this view represents
+     * @return std::string_view : The name of the system
 
     + void SubmitTaskList(TaskList task_list)
      * @brief : Submit a task list to the system view for processing
