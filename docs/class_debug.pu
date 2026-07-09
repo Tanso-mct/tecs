@@ -78,6 +78,16 @@ class SystemLogExporter
 SystemLogExporter --|> LogExporter
 SystemLogExporter --> SystemView
 
+class EntityLog
+{
+    + Entity entity_
+    * The entity associated with the log
+    
+    + std::vector<std::string> component_names_
+    * A vector of component names associated with the entity
+    ---
+}
+
 class EntityLogExporter
 {
     + EntityLogExporter(Registry& registry)
@@ -98,6 +108,12 @@ class EntityLogExporter
     ---
     - Registry& registry_
      * Reference to the Registry object used for exporting entity logs
+
+    - std::unordered_map<uint32_t, std::vector<EntityLog>> entity_logs_
+     * A map that associates frame numbers with their corresponding entity logs for historical tracking
+
+    - uint32_t analyzed_frame_count_ = 0
+     * Counter for the number of analyzed frames
 }
 EntityLogExporter --|> LogExporter
 EntityLogExporter --> Registry

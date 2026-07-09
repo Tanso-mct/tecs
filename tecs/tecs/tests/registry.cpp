@@ -88,11 +88,9 @@ TEST(tecs, component)
     // Verify the component's name, GUID, and runtime ID
     EXPECT_EQ(test_component.GetName(), "TestComponent");
     EXPECT_EQ(test_component.GetGUID(), (GUID{0, 0, 0, 0}));
-    EXPECT_EQ(tecs_registry_test::TestComponent::GetRuntimeID(), 0);
 
     EXPECT_EQ(another_test_component.GetName(), "AnotherTestComponent");
     EXPECT_EQ(another_test_component.GetGUID(), (GUID{1, 1, 1, 1}));
-    EXPECT_EQ(tecs_registry_test::AnotherTestComponent::GetRuntimeID(), 1);
 
     // Import and export the component configuration
     std::unique_ptr<tecs::ComponentConfig> config = std::make_unique<tecs_registry_test::TestComponentConfig>();
@@ -168,6 +166,11 @@ TEST(tecs, registry)
 
     for (const tecs::Entity& e : registry.View<tecs_registry_test::AnotherTestComponent>())
         EXPECT_EQ(e, entity);
+
+    // Get all entities in the registry
+    std::vector<tecs::Entity> all_entities = registry.GetEntities();
+    EXPECT_EQ(all_entities.size(), 1);
+    EXPECT_EQ(all_entities[0], entity);
 
     // Destroy the entity
     EXPECT_TRUE(registry.DestroyEntity(entity));

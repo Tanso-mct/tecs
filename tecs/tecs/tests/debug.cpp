@@ -86,6 +86,58 @@ private:
 
 };
 
+class TestComponentConfig : public tecs::ComponentConfig
+{
+};
+
+class TestComponent : public tecs::ComponentBase<TestComponent>
+{
+public:
+    TestComponent() : tecs::ComponentBase<TestComponent>("TestComponent", GUID{0, 0, 0, 0}) {}
+
+    bool Import(std::unique_ptr<tecs::ComponentConfig> config) override
+    {
+        return true;
+    }
+
+    std::unique_ptr<tecs::ComponentConfig> Export() const override
+    {
+        return std::make_unique<TestComponentConfig>();
+    }
+
+    bool Update(tecs::Actor actor) override
+    {
+        return true;
+    }
+
+};
+
+class AnotherTestComponentConfig : public tecs::ComponentConfig
+{
+};
+
+class AnotherTestComponent : public tecs::ComponentBase<AnotherTestComponent>
+{
+public:
+    AnotherTestComponent() : tecs::ComponentBase<AnotherTestComponent>("AnotherTestComponent", GUID{1, 1, 1, 1}) {}
+
+    bool Import(std::unique_ptr<tecs::ComponentConfig> config) override
+    {
+        return true;
+    }
+
+    std::unique_ptr<tecs::ComponentConfig> Export() const override
+    {
+        return std::make_unique<AnotherTestComponentConfig>();
+    }
+
+    bool Update(tecs::Actor actor) override
+    {
+        return true;
+    }
+
+};
+
 } // namespace tecs_debug_test
 
 TEST(tecs, job_debug_log)
@@ -211,4 +263,44 @@ TEST(tecs, system_debug_log)
 
     // Join the flush thread to ensure it has completed before the test ends
     flush_thread.join();
+}
+
+TEST(tecs, entity_debug_log)
+{
+    tecs::Registry registry;
+
+    // Create an entity log exporter
+    std::unique_ptr<tecs::LogExporter> entity_log_exporter 
+        = std::make_unique<tecs::EntityLogExporter>(registry);
+
+    // Create an entity
+    tecs::Entity entity = registry.CreateEntity();
+    EXPECT_TRUE(registry.CheckEntityValidity(entity));
+
+    // Add components to the entity
+    std::unique_ptr<tecs::Component> component = std::make_unique<tecs_debug_test::TestComponent>();
+    EXPECT_TRUE(registry.AddComponent(entity, tecs_debug_test::TestComponent::GetRuntimeID(), std::move(component)));
+
+    // Analyze the entity log data
+    bool analysis_success = entity_log_exporter->Analyze();
+    EXPECT_TRUE(analysis_success);
+
+    // Add another component to the entity
+    std::unique_ptr<tecs::Component> another_component = std::make_unique<tecs_debug_test::AnotherTestComponent>();
+    EXPECT_TRUE(registry.AddComponent(entity, tecs_debug_test::AnotherTestComponent::GetRuntimeID(), std::move(another_component)));
+
+    // Analyze the entity log data again after adding the second component
+    analysis_success = entity_log_exporter->Analyze();
+    EXPECT_TRUE(analysis_success);
+
+    // Export the entity log data
+    uint32_t log_size = 0;
+    std::unique_ptr<uint8_t[]> log_data = entity_log_exporter->Export(log_size);
+    EXPECT_NE(log_data, nullptr);
+    EXPECT_GT(log_size, 0);
+
+    // Write the exported log data to a file
+    std::string output_file_path = "../../../../data/entity_log.csv";
+    bool write_success = tecs::WriteBufferToFile(output_file_path, log_data.get(), log_size);
+    EXPECT_TRUE(write_success);
 }

@@ -134,17 +134,69 @@ EntityLogExporter::EntityLogExporter(Registry& registry)
 
 bool EntityLogExporter::Analyze()
 {
+    // Get all entities in the registry
+    std::vector<Entity> entities = registry_.GetEntities();
+
+    for (const Entity& entity : entities)
+    {
+        EntityLog entity_log;
+
+        // Store the entity in the entity log
+        entity_log.entity_ = entity;
+
+        // Get all components associated with the entity
+        std::vector<uint32_t> component_runtime_ids = registry_.GetComponentTypes(entity);
+
+        // Store the component names in the entity log
+        for (uint32_t component_runtime_id : component_runtime_ids)
+        {
+            Component* component = registry_.GetComponent(entity, component_runtime_id);
+            if (component)
+                entity_log.component_names_.push_back(component->GetName().data());
+        }
+
+        // Store the entity log in the entity_logs_ map for the current frame
+        entity_logs_[analyzed_frame_count_].emplace_back(std::move(entity_log));
+    }
+
+    analyzed_frame_count_++; // Increment the analyzed frame count
+
     return true;
 }
 
 void EntityLogExporter::Clear()
 {
+    entity_logs_.clear(); // Clear the entity logs map
+    analyzed_frame_count_ = 0; // Reset the analyzed frame count
 }
 
 std::unique_ptr<uint8_t[]> EntityLogExporter::Export(uint32_t& size)
 {
-    size = 0;
-    return std::make_unique<uint8_t[]>(size);
+    std::string log_csv = "";
+
+    for (const auto& [frame, entity_logs] : entity_logs_)
+    {
+        log_csv += "Frame " + std::to_string(frame) + ",";
+
+        for (const EntityLog& entity_log : entity_logs)
+        {
+            log_csv += "\"";
+            log_csv += "Entity ID: " + std::to_string(entity_log.entity_.GetID()) + " ";
+            log_csv += "Gen: " + std::to_string(entity_log.entity_.GetGen()) + "\n";
+            for (const std::string& component_name : entity_log.component_names_)
+                log_csv += component_name + "\n";
+
+            log_csv += "\"";
+            log_csv += "\n";
+        }
+    }
+
+    // Convert the CSV string to a byte array
+    size = static_cast<uint32_t>(log_csv.size());
+    std::unique_ptr<uint8_t[]> log_data = std::make_unique<uint8_t[]>(size);
+    std::memcpy(log_data.get(), log_csv.data(), size);
+
+    return log_data;
 }
 
 Debug::Debug(JobScheduler& job_scheduler)

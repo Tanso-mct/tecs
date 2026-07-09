@@ -117,6 +117,16 @@ private:
     uint32_t analyzed_frame_count_ = 0;
 };
 
+class EntityLog
+{
+public:
+    // The entity associated with the log
+    Entity entity_;
+
+    // A vector of component names associated with the entity
+    std::vector<std::string> component_names_;
+};
+
 class EntityLogExporter
     : public LogExporter
 {
@@ -148,6 +158,12 @@ public:
 private:
     // Reference to the Registry object used for exporting entity logs
     Registry& registry_;
+
+    // A map that associates frame numbers with their corresponding entity logs for historical tracking
+    std::unordered_map<uint32_t, std::vector<EntityLog>> entity_logs_;
+
+    // Counter for the number of analyzed frames
+    uint32_t analyzed_frame_count_ = 0;
 
 };
 
