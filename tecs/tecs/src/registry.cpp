@@ -292,6 +292,19 @@ const std::set<Entity>& Registry::View(uint32_t component_runtime_id) const
     return empty_set; // Return an empty set if component ID not found
 }
 
+std::vector<Entity> Registry::GetEntities() const
+{
+    std::vector<Entity> valid_entities;
+
+    for (const auto& entity : entities_)
+    {
+        if (entity_validity_[entity.GetID()])
+            valid_entities.push_back(entity); // Add valid entity to the list
+    }
+
+    return valid_entities; // Return the list of valid entities
+}
+
 bool Registry::CheckEntityExists(Entity entity) const
 {
     if (entity.GetID() >= entities_.size())

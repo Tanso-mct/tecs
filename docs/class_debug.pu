@@ -1,0 +1,165 @@
+﻿@startuml
+
+class LogExporter
+{
+    + virtual ~LogExporter() = default
+
+    + virtual bool Analyze() = 0
+     * @brief : Analyzes the log data and returns true if the analysis is successful, false otherwise
+     * @return bool : Returns true if the log analysis is successful, false otherwise
+
+    + virtual void Clear() = 0
+     * @brief : Clears the log data, resetting any internal state
+
+    + virtual std::unique_ptr<uint8_t[]> Export(uint32_t& size) = 0
+     * @brief : Exports the log data to a byte array
+     * @param size : Reference to a variable that will hold the size of the exported log data
+     * @return std::unique_ptr<uint8_t[]> : Returns a unique pointer to a byte array containing the exported log data
+    ---
+}
+
+class JobLogExporter
+{
+    + JobLogExporter(JobTracker& job_tracker)
+     * @brief : Constructor for JobLogExporter
+     * @param job_tracker : Reference to a JobTracker object
+
+    + bool Analyze() override
+     * @brief : Analyzes the job log data and returns true if the analysis is successful, false otherwise
+     * @return bool : Returns true if the job log analysis is successful, false otherwise
+
+    + void Clear() override
+     * @brief : Clears the job log data, resetting any internal state
+
+    + std::unique_ptr<uint8_t[]> Export(uint32_t& size) override
+     * @brief : Exports the job log data to a byte array
+     * @param size : Reference to a variable that will hold the size of the exported job log data
+     * @return std::unique_ptr<uint8_t[]> : Returns a unique pointer to a byte array containing the exported job log data
+    ---
+    - JobTracker& job_tracker_
+     * Reference to the JobTracker object used for exporting job logs
+
+    - std::unordered_map<uint32_t, std::vector<JobExecutionInfo>> job_history_
+     * A map that associates frame numbers with their corresponding job execution information for historical tracking
+
+    - uint32_t analyzed_frame_count_ = 0
+     * Counter for the number of analyzed frames
+}
+JobLogExporter --|> LogExporter
+JobLogExporter --> JobTracker
+
+class SystemLogExporter
+{
+    + SystemLogExporter(std::vector<std::unique_ptr<SystemView>>&& system_views)
+     * @brief : Constructor for SystemLogExporter
+     * @param system_views : A vector of unique pointers to SystemView objects
+
+    + bool Analyze() override
+     * @brief : Analyzes the system log data and returns true if the analysis is successful, false otherwise
+     * @return bool : Returns true if the system log analysis is successful, false otherwise
+
+    + void Clear() override
+     * @brief : Clears the system log data, resetting any internal state
+
+    + std::unique_ptr<uint8_t[]> Export(uint32_t& size) override
+     * @brief : Exports the system log data to a byte array
+     * @param size : Reference to a variable that will hold the size of the exported system log data
+     * @return std::unique_ptr<uint8_t[]> : Returns a unique pointer to a byte array containing the exported system log data
+    ---
+    - std::vector<std::unique_ptr<SystemView>> system_views_
+     * A vector of unique pointers to SystemView objects used for exporting system logs
+
+    - std::unordered_map<uint32_t, std::vector<TaskInfo>> system_task_history_
+     * A map that associates frame numbers with their corresponding system task information for historical tracking
+
+    - uint32_t analyzed_frame_count_ = 0
+     * Counter for the number of analyzed frames
+}
+SystemLogExporter --|> LogExporter
+SystemLogExporter --> SystemView
+
+class EntityLog
+{
+    + Entity entity_
+    * The entity associated with the log
+    
+    + std::vector<std::string> component_names_
+    * A vector of component names associated with the entity
+    ---
+}
+
+class EntityLogExporter
+{
+    + EntityLogExporter(Registry& registry)
+     * @brief : Constructor for EntityLogExporter
+     * @param registry : Reference to a Registry object
+
+    + bool Analyze() override
+     * @brief : Analyzes the entity log data and returns true if the analysis is successful, false otherwise
+     * @return bool : Returns true if the entity log analysis is successful, false otherwise
+
+    + void Clear() override
+     * @brief : Clears the entity log data, resetting any internal state
+
+    + std::unique_ptr<uint8_t[]> Export(uint32_t& size) override
+     * @brief : Exports the entity log data to a byte array
+     * @param size : Reference to a variable that will hold the size of the exported entity log data
+     * @return std::unique_ptr<uint8_t[]> : Returns a unique pointer to a byte array containing the exported entity log data
+    ---
+    - Registry& registry_
+     * Reference to the Registry object used for exporting entity logs
+
+    - std::unordered_map<uint32_t, std::vector<EntityLog>> entity_logs_
+     * A map that associates frame numbers with their corresponding entity logs for historical tracking
+
+    - uint32_t analyzed_frame_count_ = 0
+     * Counter for the number of analyzed frames
+}
+EntityLogExporter --|> LogExporter
+EntityLogExporter --> Registry
+
+class Debug
+{
+    + Debug(JobScheduler& job_scheduler)
+     * @brief : Constructor for Debug class
+     * @param job_scheduler : Reference to a JobScheduler object
+    
+    + ~Debug() = default
+
+    + void AddLogExporter(uint32_t exporter_id, std::unique_ptr<LogExporter> exporter)
+     * @brief : Adds a log exporter to the Debug class
+     * @param exporter_id : The ID of the log exporter
+     * @param exporter : A unique pointer to the LogExporter instance to be added
+
+    + bool ExportLog(uint32_t exporter_id, std::string_view output_file) const
+     * @brief : Exports the log data using the specified log exporter
+     * @param exporter_id : The ID of the log exporter to be used for exporting
+     * @param output_file : The path to the output file where the exported log data will be saved
+     * @return bool : Returns true if the export was successful, false otherwise
+    ---
+    - JobScheduler& job_scheduler_
+     * Reference to the JobScheduler object used for managing jobs
+
+    - std::unordered_map<uint32_t, std::unique_ptr<LogExporter>> log_exporters_
+     * A map that associates log exporter IDs with their corresponding LogExporter instances
+}
+Debug *-- LogExporter
+
+class DebugLog
+{
+    + DebugLog(Debug& debug)
+     * @brief : Constructor for DebugLog class
+     * @param debug : Reference to a Debug object
+
+    + bool ExportLog(uint32_t exporter_id, std::string_view output_file) const
+     * @brief : Exports the log data using the specified log exporter
+     * @param exporter_id : The ID of the log exporter to be used for exporting
+     * @param output_file : The path to the output file where the exported log data will be saved
+     * @return bool : Returns true if the export was successful, false otherwise
+    ---
+    - Debug& debug_
+     * Reference to the Debug object used for exporting logs
+}
+DebugLog --> Debug
+
+@enduml

@@ -372,6 +372,12 @@ public:
      */
     std::vector<JobExecutionInfo> GetThreadInfos() const;
 
+    /**
+     * @brief : Get the number of worker threads managed by the job tracker
+     * @return uint32_t : The number of worker threads
+     */
+    uint32_t GetWorkerThreadCount() const;
+
 private:
     // A reference to the vector of worker threads, used to track the jobs currently being processed
     const std::vector<std::unique_ptr<WorkerThread>>& worker_threads_;

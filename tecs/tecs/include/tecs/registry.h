@@ -324,6 +324,12 @@ public:
         return View(T::GetRuntimeID());
     }
 
+    /**
+     * @brief : Retrieves a list of all entities in the registry
+     * @return : Returns a vector of all entities in the registry
+     */
+    std::vector<Entity> GetEntities() const;
+
 private:
     /**
      * @brief : Checks if an entity exists in the registry

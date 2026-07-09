@@ -300,11 +300,18 @@ class System
 {
 public:
     /**
-     * @brief : Create a new task processor and task list queue for the system
+     * @brief : Construct a new System object with the specified name
+     * @param name : The name of the system
      */
-    System();
+    System(std::string name);
 
     virtual ~System() = default;
+
+    /**
+     * @brief : Get the name of the system
+     * @return std::string_view : The name of the system
+     */
+    std::string_view GetName() const;
 
     /**
      * @brief : Submit a task list to the system for processing
@@ -343,6 +350,9 @@ protected:
     static uint32_t next_id_;
 
 private:
+    // The name of the system
+    std::string name_;
+
     // The task processor for the system
     TaskProcessor task_processor_;
 
@@ -361,6 +371,15 @@ class SystemBase
     : public System
 {
 public:
+    /**
+     * @brief : Construct a new SystemBase object with the specified name
+     * @param name : The name of the system
+     */
+    SystemBase(std::string name) : 
+        System(std::move(name))
+    {
+    }
+
     virtual ~SystemBase() = default;
 
     /**
@@ -387,6 +406,12 @@ public:
     ~SystemView() = default;
 
     /**
+     * @brief : Get the name of the system that this view represents
+     * @return std::string_view : The name of the system
+     */
+    std::string_view GetSystemName() const;
+
+    /**
      * @brief : Submit a task list to the system view for processing
      * @param task_list : The task list to submit to the system view
      */
@@ -397,6 +422,12 @@ public:
      * @return const Port& : A reference to the read port for the system view
      */
     const Port& GetReadPort() const;
+
+    /**
+     * @brief : Flush the tasks in the system view's task queue using the task processor
+     * @return bool : True if the tasks were successfully flushed, false otherwise
+     */
+    TaskInfo GetCurrentTaskInfo() const;
 
     /**
      * @brief : Create a new instance of the system view that is a copy of the current instance
