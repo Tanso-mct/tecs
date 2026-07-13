@@ -335,7 +335,7 @@ TEST(tecs, system_view)
     flush_thread.join();
 }
 
-TEST(tecs, system_view_registry)
+TEST(tecs, system_view_list)
 {
     // Create an instance of the test system
     tecs_system_test::TestSystem test_system;
@@ -347,10 +347,10 @@ TEST(tecs, system_view_registry)
     uint32_t test_system_id = tecs_system_test::TestSystem::GetID();
 
     // Create a system view registry
-    tecs::SystemViewRegistry registry;
+    tecs::SystemViewList registry;
 
     // Register the system view with the registry for the test system ID
-    registry.RegisterView(test_system_id, std::move(system_view));
+    registry.AddView(test_system_id, std::move(system_view));
 
     // Retrieve the registered system view from the registry using the test system ID
     std::unique_ptr<tecs::SystemView> retrieved_view = registry.GetView(test_system_id);

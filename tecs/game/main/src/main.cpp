@@ -1,7 +1,20 @@
-﻿#include <iostream>
+﻿#include "tecs/tecs.h"
+
+namespace tecs_game_main
+{
+
+
+
+
+} // namespace tecs_game_main
 
 int main(int argc, char* argv[])
 {
-    std::cout << "Hello, World!" << std::endl;
+    tecs::JobScheduler job_scheduler;
+    tecs::Registry registry;
+    tecs::SystemViewList system_view_list;
+    
+
+    
     return 0;
 }

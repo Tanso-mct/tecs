@@ -214,13 +214,13 @@ std::unique_ptr<SystemView> SystemView::Clone() const
     return std::make_unique<SystemView>(system_);
 }
 
-void SystemViewRegistry::RegisterView(uint32_t system_id, std::unique_ptr<SystemView> view)
+void SystemViewList::AddView(uint32_t system_id, std::unique_ptr<SystemView> view)
 {
     assert(view != nullptr && "System view cannot be null.");
     views_[system_id] = std::move(view);
 }
 
-std::unique_ptr<SystemView> SystemViewRegistry::GetView(uint32_t system_id) const
+std::unique_ptr<SystemView> SystemViewList::GetView(uint32_t system_id) const
 {
     auto it = views_.find(system_id);
     if (it != views_.end())

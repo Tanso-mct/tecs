@@ -441,19 +441,19 @@ private:
 
 };
 
-class SystemViewRegistry
+class SystemViewList
 {
 public:
-    SystemViewRegistry() = default;
+    SystemViewList() = default;
 
-    ~SystemViewRegistry() = default;
+    ~SystemViewList() = default;
 
     /**
      * @brief : Register a system view with the registry for a specific system ID
      * @param system_id : The unique identifier of the system to register the view for
      * @param view : A unique pointer to the system view to register
      */
-    void RegisterView(uint32_t system_id, std::unique_ptr<SystemView> view);
+    void AddView(uint32_t system_id, std::unique_ptr<SystemView> view);
 
     /**
      * @brief : Get the system view registered for a specific system ID from the registry
