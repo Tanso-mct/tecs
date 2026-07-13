@@ -6,28 +6,26 @@ cmake_minimum_required(VERSION 3.8)
 # Project name and language
 project("main" LANGUAGES CXX)
 
-# ---- Library ----
-add_library(main
-    # ---- Headers ----
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
+# ---- Executable ----
+add_executable(main
+    src/main.cpp
+)
 
-    # ---- Sources ----
-
+# C++ 17 standard
+target_compile_features(main
+    PUBLIC
+        cxx_std_17
 )
 
 # Public headers
-# - BUILD_INTERFACE: At build time (assuming it is located directly under the source code directory)
-# - INSTALL_INTERFACE: After installation (assuming it is placed under "include")
 target_include_directories(main
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
-)
-
-# Precompiled headers
-target_precompile_headers(main
-    PRIVATE
-        "src/pch.h"
 )
 
 # Compile options
@@ -42,75 +40,7 @@ target_link_libraries(main
         tecs
 )
 
-# ---- Tests ----
-include(CTest)  # BUILD_TESTING option + enable_testing()
-
-if (BUILD_TESTING)
-    include(FetchContent)
-
-    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-
-    FetchContent_Declare(
-        googletest
-        URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
-    )
-    FetchContent_MakeAvailable(googletest)
-
-    add_executable(main_tests
-        tests/window_container.cpp
-    )
-
-    target_link_libraries(main_tests
-        PRIVATE
-            tecs
-            main
-            GTest::gtest_main
-    )
-
-    include(GoogleTest)
-    gtest_discover_tests(main_tests)
-endif()
-
 # ---- Installation ----
-include(CMakePackageConfigHelpers)
-
-# Install libraries (archives/shared/executable files)
 install(TARGETS main
-    EXPORT mainTargets
-    ARCHIVE DESTINATION lib
-    LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
-)
-
-# Install the public header
-install(DIRECTORY
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/main/
-    DESTINATION include/main
-)
-
-# Install the export file (target information)
-install(EXPORT mainTargets
-    NAMESPACE tecs::game::main::
-    DESTINATION lib/cmake/main
-)
-
-# Version File Generation
-write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/mainConfigVersion.cmake"
-    VERSION 1.0.0
-    COMPATIBILITY AnyNewerVersion
-)
-
-# Config File Generation
-configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/mainConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/mainConfig.cmake"
-    @ONLY
-)
-
-# Install the Config/Version file
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/mainConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/mainConfigVersion.cmake"
-    DESTINATION lib/cmake/main
 )
