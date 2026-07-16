@@ -40,6 +40,16 @@ target_link_libraries(main
         tecs
 )
 
+if(WIN32)
+    target_link_options(main
+        PRIVATE
+            $<$<CONFIG:Release>:/SUBSYSTEM:WINDOWS>
+            $<$<CONFIG:Release>:/ENTRY:mainCRTStartup>
+            
+            $<$<CONFIG:Debug>:/SUBSYSTEM:CONSOLE>
+    )
+endif()
+
 # ---- Installation ----
 install(TARGETS main
     RUNTIME DESTINATION bin
