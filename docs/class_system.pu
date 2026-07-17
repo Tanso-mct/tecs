@@ -361,13 +361,13 @@ class SystemView
 }
 SystemView ..> System
 
-class SystemViewRegistry
+class SystemViewList
 {
-    + SystemViewRegistry() = default
-    + ~SystemViewRegistry() = default
+    + SystemViewList() = default
+    + ~SystemViewList() = default
 
-    + void RegisterView(uint32_t system_id, std::unique_ptr<SystemView> view)
-     * @brief : Register a system view with the registry for a specific system ID
+    + void AddView(uint32_t system_id, std::unique_ptr<SystemView> view)
+     * @brief : Add a system view with the registry for a specific system ID
      * @param system_id : The unique identifier of the system to register the view for
      * @param view : A unique pointer to the system view to register
 
@@ -379,6 +379,6 @@ class SystemViewRegistry
     - std::unordered_map<uint32_t, std::unique_ptr<SystemView>> views_
      * A map of system IDs to their corresponding registered system views
 }
-SystemViewRegistry *-- SystemView
+SystemViewList *-- SystemView
 
 @enduml
