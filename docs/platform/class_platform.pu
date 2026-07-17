@@ -1,0 +1,22 @@
+﻿@startuml
+
+class PlatformWritePort
+{
+    ---
+}
+PlatformWritePort --|> Port
+
+class PlatformReadPort
+{
+    ---
+}
+PlatformReadPort --|> Port
+
+class PlatformSystem
+{
+    ---
+}
+PlatformSystem --|> SystemBase
+
+
+@enduml
