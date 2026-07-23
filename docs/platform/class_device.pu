@@ -1,0 +1,20 @@
+﻿@startuml
+
+class InputType
+{
+
+}
+
+class KeyboardInputType
+{
+
+}
+KeyboardInputType --|> InputType
+
+class MouseInputType
+{
+
+}
+MouseInputType --|> InputType
+
+@enduml

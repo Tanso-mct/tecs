@@ -1,0 +1,216 @@
+﻿@startuml
+
+class WindowDesc
+{
+    + uint32_t width_
+     * The width of the window
+
+    + uint32_t height_
+     * The height of the window
+
+    + WindowState state_
+     * The state of the window
+}
+
+class Window
+{
+    + Window() = default
+
+    + ~Window() = default
+
+    + virtual bool Create(std::unique_ptr<WindowDesc> desc) = 0
+     * @brief : Creates a window with the given description
+     * @param desc : The description of the window to create
+     * @return bool : Returns true if the window was created successfully, false otherwise
+
+    + virtual void Destroy() = 0
+     * @brief : Destroys the window
+
+    + virtual bool Show() = 0
+     * @brief : Shows the window
+     * @return bool : Returns true if the window was shown successfully, false otherwise
+
+    + virtual bool Hide() = 0
+     * @brief : Hides the window
+     * @return bool : Returns true if the window was hidden successfully, false otherwise
+
+    + virtual bool Resize(uint32_t width, uint32_t height) = 0
+     * @brief : Resizes the window to the given width and height
+     * @param width : The new width of the window
+     * @param height : The new height of the window
+     * @return bool : Returns true if the window was resized successfully, false otherwise
+
+    + virtual bool Maximize() = 0
+     * @brief : Maximizes the window
+     * @return bool : Returns true if the window was maximized successfully, false otherwise
+
+    + virtual bool Minimize() = 0
+     * @brief : Minimizes the window
+     * @return bool : Returns true if the window was minimized successfully, false otherwise
+
+    + virtual bool Restore() = 0
+     * @brief : Restores the window to its previous size and position
+     * @return bool : Returns true if the window was restored successfully, false otherwise
+
+    + virtual bool Fullscreen() = 0
+     * @brief : Makes the window fullscreen
+     * @return bool : Returns true if the window was made fullscreen successfully, false otherwise
+
+    + virtual bool Move(int x, int y) = 0
+     * @brief : Moves the window to the given x and y coordinates
+     * @param x : The new x coordinate of the window
+     * @param y : The new y coordinate of the window
+     * @return bool : Returns true if the window was moved successfully, false otherwise
+
+    + virtual int GetX() const = 0
+     * @brief : Gets the x coordinate of the window
+     * @return int : The x coordinate of the window
+
+    + virtual int GetY() const = 0
+     * @brief : Gets the y coordinate of the window
+     * @return int : The y coordinate of the window
+
+    + virtual uint32_t GetWidth() const = 0
+     * @brief : Gets the width of the window
+     * @return uint32_t : The width of the window
+
+    + virtual uint32_t GetHeight() const = 0
+     * @brief : Gets the height of the window
+     * @return uint32_t : The height of the window
+
+    + virtual uint32_t GetClientWidth() const = 0
+     * @brief : Gets the width of the client area of the window
+     * @return uint32_t : The width of the client area of the window
+
+    + virtual uint32_t GetClientHeight() const = 0
+     * @brief : Gets the height of the client area of the window
+     * @return uint32_t : The height of the client area of the window
+    ---
+}
+Window *-- WindowDesc
+
+class Win32WindowDesc
+{
+    + WNDCLASSEX window_class_
+     * The window class structure for the Win32 window
+
+    + DWORD window_style_
+     * The window style for the Win32 window
+
+    + std::wstring title_
+     * The title of the Win32 window
+
+    + std::wstring class_name_
+     * The class name of the Win32 window
+}
+Win32WindowDesc --|> WindowDesc
+
+class Win32Window
+{
+    + Win32Window() = default
+
+    + ~Win32Window()
+     * @brief : Destroys the Win32 window and unregisters the window class
+
+    + virtual bool Create(std::unique_ptr<WindowDesc> desc) override
+     * @brief : Override from Window::Create
+
+    + virtual void Destroy() override
+     * @brief : Override from Window::Destroy
+
+    + virtual bool Show() override
+     * @brief : Override from Window::Show
+
+    + virtual bool Hide() override
+     * @brief : Override from Window::Hide
+
+    + virtual bool Resize(uint32_t width, uint32_t height) override
+     * @brief : Override from Window::Resize
+
+    + virtual bool Maximize() override
+     * @brief : Override from Window::Maximize
+
+    + virtual bool Minimize() override
+     * @brief : Override from Window::Minimize
+
+    + virtual bool Restore() override
+     * @brief : Override from Window::Restore
+
+    + virtual bool Fullscreen() override
+     * @brief : Override from Window::Fullscreen
+
+    + virtual bool Move(int x, int y) override
+     * @brief : Override from Window::Move
+
+    + virtual int GetX() const override
+     * @brief : Override from Window::GetX
+
+    + virtual int GetY() const override
+     * @brief : Override from Window::GetY
+
+    + virtual uint32_t GetWidth() const override
+     * @brief : Override from Window::GetWidth
+
+    + virtual uint32_t GetHeight() const override
+     * @brief : Override from Window::GetHeight
+
+    + virtual uint32_t GetClientWidth() const override
+     * @brief : Override from Window::GetClientWidth
+
+    + virtual uint32_t GetClientHeight() const override
+     * @brief : Override from Window::GetClientHeight
+
+    + HWND GetHandle() const
+     * @brief : Gets the handle of the Win32 window
+     * @return HWND : The handle of the Win32 window
+    ---
+    - HWND handle_
+     * The handle of the Win32 window
+
+    - std::unique_ptr<WindowDesc> desc_
+     * The description of the Win32 window
+}
+Win32Window --|> Window
+
+class WindowContainer
+{
+    + WindowContainer() = default
+
+    + ~WindowContainer() = default
+
+    + bool Add(tecs::Entity entity, std::unique_ptr<Window> window)
+     * @brief : Adds a window to the container
+     * @param entity : The entity associated with the window
+     * @param window : The window to add
+     * @return bool : Returns true if the window was added successfully, false otherwise
+
+    + bool Remove(tecs::Entity entity)
+     * @brief : Removes a window from the container
+     * @param entity : The entity associated with the window to remove
+     * @return bool : Returns true if the window was removed successfully, false otherwise
+
+    + Window& Get(tecs::Entity entity)
+     * @brief : Gets a window from the container
+     * @param entity : The entity associated with the window to get
+     * @return Window& : A reference to the window associated with the given entity
+
+    + const Window& Get(tecs::Entity entity) const
+     * @brief : Gets a window from the container (const version)
+     * @param entity : The entity associated with the window to get
+     * @return const Window& : A const reference to the window associated with the given entity
+
+    + bool Contains(tecs::Entity entity) const
+     * @brief : Checks if a window exists in the container
+     * @param entity : The entity associated with the window to check
+     * @return bool : Returns true if the window exists in the container, false otherwise
+
+    + uint32_t Count() const
+     * @brief : Gets the number of windows in the container
+     * @return uint32_t : The number of windows in the container
+    ---
+    - std::unordered_map<tecs::Entity, std::unique_ptr<Window>> windows_
+     * A map of all the windows in the system, keyed by their entity
+}
+WindowContainer *-- Window
+
+@enduml

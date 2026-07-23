@@ -1,0 +1,33 @@
+﻿@startuml
+
+class PlatformWritePort
+{
+    + PlatformWritePort(WindowContainer& window_container)
+     * Constructor which takes a reference to the window container
+
+    + WindowContainer& window_container_
+     * Reference to the window container which holds all the windows in the system
+}
+PlatformWritePort --|> Port
+PlatformWritePort ..> WindowContainer
+
+class PlatformReadPort
+{
+    + PlatformReadPort(const WindowContainer& window_container)
+     * Constructor which takes a const reference to the window container
+
+    + const WindowContainer& window_container_
+     * Reference to the window container which holds all the windows in the system
+}
+PlatformReadPort --|> Port
+PlatformReadPort ..> WindowContainer
+
+class PlatformSystem
+{
+    ---
+    - WindowContainer window_container_
+     * Container which holds all the windows in the system
+}
+PlatformSystem --|> SystemBase
+
+@enduml
