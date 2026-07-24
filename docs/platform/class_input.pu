@@ -1,0 +1,113 @@
+﻿@startuml
+
+class InputTable
+{
+    + virtual ~InputTable() = default
+    ---
+}
+
+class KeyboardInputTable
+{
+    + virtual ~KeyboardInputTable() override = default
+    ---
+}
+KeyboardInputTable --|> InputTable
+
+class MouseInputTable
+{
+    + virtual ~MouseInputTable() override = default
+    ---
+}
+MouseInputTable --|> InputTable
+
+class InputAction
+{
+    + InputAction(InputTable& input_table)
+     * @brief : Constructor which takes a reference to the input table
+     * @param input_table : The input table which holds all the input types
+
+    + virtual ~InputAction() = default
+
+    + virtual uint32_t GetCode() const = 0
+     * @brief : GetCodes the input code
+     * @return uint32_t : The input code
+
+    + virtual uint32_t GetType() const = 0
+     * @brief : GetTypes the input type
+     * @return uint32_t : The input type
+    ---
+    # InputTable& input_table_
+     * Reference to the input table which holds all the input types
+}
+InputAction ..> InputTable
+
+class KeyboardInputAction
+{
+    + KeyboardInputAction(InputTable& input_table, UINT message, WPARAM w_param, LPARAM l_param)
+     * @brief : Constructor which  create the input type
+     * @param input_table : The reference to the input table
+     * @param message : The message from the Windows message
+     * @param w_param : The w_param from the Windows message
+     * @param l_param : The l_param from the Windows message
+
+    + virtual ~KeyboardInputAction() override = default
+
+    + virtual uint32_t GetCode() const override
+     * @brief : Override from InputAction::GetCode
+
+    + virtual uint32_t GetType() const override
+     * @brief : Override from InputAction::GetType
+    ---
+    - uint32_t input_code_
+     * The input code which is created from the Windows message
+
+    - uint32_t input_type_
+     * The input type which is created from the Windows message
+}
+KeyboardInputAction --|> InputAction
+
+class MouseInputAction
+{
+    + MouseInputAction(InputTable& input_table, UINT message, WPARAM w_param)
+     * @brief : Constructor which takes the message and w_param from the Windows message and create the input type
+     * @param input_table : The reference to the input table
+     * @param message : The message from the Windows message
+     * @param w_param : The w_param from the Windows message
+
+    + virtual ~MouseInputAction() override = default
+
+    + virtual uint32_t GetCode() const override
+     * @brief : Override from InputAction::GetCode
+
+    + virtual uint32_t GetType() const override
+     * @brief : Override from InputAction::GetType
+    ---
+    - uint32_t input_code_
+     * The input code which is created from the Windows message
+
+    - uint32_t input_type_
+     * The input type which is created from the Windows message
+}
+MouseInputAction --|> InputAction
+
+class InputState
+{
+
+}
+InputState ..> InputAction
+
+class KeyboardInputState
+{
+    + virtual ~KeyboardInputState() override = default
+    ---
+}
+KeyboardInputState --|> InputState
+
+class MouseInputState
+{
+    + virtual ~MouseInputState() override = default
+    ---
+}
+MouseInputState --|> InputState
+
+@enduml

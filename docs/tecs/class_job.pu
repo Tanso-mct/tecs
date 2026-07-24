@@ -9,8 +9,6 @@ class JobType
 
     + ~JobType() = default
 
-    + 
-
     + bool operator==(const JobType& other) const
      * @brief : Equality operator to compare two JobType objects
      * @param other : The other JobType object to compare with
